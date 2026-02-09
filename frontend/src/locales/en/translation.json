@@ -1,0 +1,77 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "search": "Search for a market",
+    "connectWallet": "Connect Wallet",
+    "poweredBy": "Powered by 0G Newton Testnet",
+    "theme": {
+      "light": "Light mode",
+      "dark": "Dark mode",
+      "toggle": "Toggle theme"
+    }
+  },
+  "nav": {
+    "explorer": "Explorer",
+    "smartMoney": "Smart Money",
+    "reefboard": "Reefboard",
+    "referral": "Referral",
+    "portfolio": "Portfolio",
+    "docs": "Docs",
+    "twitter": "Twitter",
+    "support": "Support",
+    "soon": "Soon",
+    "testnetLive": "Testnet Live"
+  },
+  "marketList": {
+    "trending": "Trending",
+    "newEvents": "New Events",
+    "endingSoon": "Ending Soon",
+    "expiresSoon": "Expires soon",
+    "created": "Created",
+    "expires": "Expires",
+    "markets": "markets",
+    "vol24h": "Vol 24h",
+    "totalVol": "Total Vol",
+    "liquidity": "Liquidity",
+    "event": "Event",
+    "noMarkets": "No markets found",
+    "noMarketsDesc": "Try adjusting your filters or search query"
+  },
+  "marketDetail": {
+    "expires": "Expires",
+    "rules": "Rules",
+    "markets": "Markets",
+    "selected": "Selected",
+    "selectMarket": "Select a market",
+    "selectMarketToView": "Select a market to view details",
+    "selectMarketToAnalyze": "Select a market to run AI analysis",
+    "volume": "Volume",
+    "liquidity": "Liquidity",
+    "priceHistory": "Price History",
+    "orderBook": "Order Book",
+    "marketUnavailable": "Market data unavailable"
+  },
+  "ai": {
+    "analysisTitle": "AI Analysis",
+    "run": "AI Analysis",
+    "stop": "Stop",
+    "running": "Analyzing...",
+    "latest5Lines": "Output (latest 5 lines)",
+    "noOutput": "No output yet",
+    "bas": "Bet Attractiveness Score (BAS)",
+    "event": "Event",
+    "priorProbability": "Prior probability",
+    "posteriorProbability": "Posterior probability",
+    "confidence": "Confidence",
+    "fairBand": "Fair probability band",
+    "evidenceCount": "Evidence count",
+    "evidenceNetSignal": "Net signal",
+    "evidenceTotalWeight": "Total weight",
+    "riskFactors": "Risk factors",
+    "riskResolution": "Resolution",
+    "riskTime": "Time",
+    "riskTail": "Tail",
+    "formula": "Formula"
+  }
+}

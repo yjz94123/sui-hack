@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/zhuyingjie/code/sui-hack/frontend/.env.example << 'EOF'\n# Sui 网络配置\nVITE_SUI_NETWORK=testnet\n\n# Sui 合约地址（部署后更新）\nVITE_SUI_PACKAGE_ID=0x0\nVITE_SUI_USDC_MINT_CONTROLLER=0x0\nVITE_SUI_TRADING_HUB=0x0\nVITE_SUI_ADMIN_CAP=0x0\nEOF)",
+      "Bash(sui:*)",
+      "Bash(./scripts/setup-sui.sh:*)",
+      "Bash(printf:*)",
+      "Bash(brew upgrade:*)"
+    ]
+  }
+}

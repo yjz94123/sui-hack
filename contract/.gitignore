@@ -1,0 +1,2 @@
+# Move 合约相关内容在 move/.gitignore 中定义
+.DS_Store

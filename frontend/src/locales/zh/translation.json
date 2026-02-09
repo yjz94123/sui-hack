@@ -1,0 +1,77 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "search": "搜索市场",
+    "connectWallet": "连接钱包",
+    "poweredBy": "Powered by 0G Newton Testnet",
+    "theme": {
+      "light": "浅色模式",
+      "dark": "深色模式",
+      "toggle": "切换主题"
+    }
+  },
+  "nav": {
+    "explorer": "浏览",
+    "smartMoney": "聪敏钱",
+    "reefboard": "排行榜",
+    "referral": "邀请",
+    "portfolio": "资产组合",
+    "docs": "文档",
+    "twitter": "推特",
+    "support": "支持",
+    "soon": "即将推出",
+    "testnetLive": "测试网运行中"
+  },
+  "marketList": {
+    "trending": "热门",
+    "newEvents": "新发布",
+    "endingSoon": "即将结束",
+    "expiresSoon": "即将过期",
+    "created": "创建",
+    "expires": "到期",
+    "markets": "个市场",
+    "vol24h": "24h成交",
+    "totalVol": "总成交",
+    "liquidity": "流动性",
+    "event": "事件",
+    "noMarkets": "暂无市场",
+    "noMarketsDesc": "请尝试调整过滤器或搜索条件"
+  },
+  "marketDetail": {
+    "expires": "到期",
+    "rules": "规则",
+    "markets": "子市场",
+    "selected": "已选择",
+    "selectMarket": "请选择一个子市场",
+    "selectMarketToView": "请选择一个子市场以查看详情",
+    "selectMarketToAnalyze": "请选择一个子市场以进行 AI 分析",
+    "volume": "成交量",
+    "liquidity": "流动性",
+    "priceHistory": "价格走势",
+    "orderBook": "订单簿",
+    "marketUnavailable": "市场数据暂不可用"
+  },
+  "ai": {
+    "analysisTitle": "AI 分析",
+    "run": "AI 分析",
+    "stop": "停止",
+    "running": "分析中...",
+    "latest5Lines": "输出（最新 5 行）",
+    "noOutput": "暂无输出",
+    "bas": "下注价值分数（BAS）",
+    "event": "事件",
+    "priorProbability": "先验概率",
+    "posteriorProbability": "后验概率",
+    "confidence": "置信度",
+    "fairBand": "公平概率区间",
+    "evidenceCount": "证据条数",
+    "evidenceNetSignal": "净信号",
+    "evidenceTotalWeight": "总权重",
+    "riskFactors": "风险因子",
+    "riskResolution": "结算",
+    "riskTime": "时间",
+    "riskTail": "尾部",
+    "formula": "公式"
+  }
+}

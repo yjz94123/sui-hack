@@ -1,0 +1,19 @@
+{
+  "name": "prediction-market-sui",
+  "version": "1.0.0",
+  "description": "Sui prediction market contracts deployment and interaction scripts",
+  "type": "module",
+  "scripts": {
+    "deploy": "tsx scripts/deploy.ts",
+    "interact": "tsx scripts/interact.ts"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.14.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
