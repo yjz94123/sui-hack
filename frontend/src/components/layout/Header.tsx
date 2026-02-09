@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
-import { useWalletStore } from '../../stores';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { ConnectButton } from '../common/ConnectButton';
 
 export function Header() {
-  const { isConnected, address } = useWalletStore();
+  const account = useCurrentAccount();
+  const isConnected = !!account;
+  const address = account?.address;
 
   return (
     <header className="border-b border-border bg-base/80 backdrop-blur sticky top-0 z-50">

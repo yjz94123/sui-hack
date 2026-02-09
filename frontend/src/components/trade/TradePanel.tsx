@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useAccount } from 'wagmi';
+import { useMemo, useState } from 'react';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { placeBuyOrder } from '../../api';
 import {
-  CONTRACTS,
   MAX_MINT_AMOUNT,
-  useApproveUSDC,
   useMintUSDC,
-  useUSDCAllowance,
   useUSDCBalance,
 } from '../../contracts';
 import { parseUSDC } from '../../contracts/utils';
@@ -18,31 +15,20 @@ interface TradePanelProps {
 }
 
 export function TradePanel({ marketId: _marketId, yesPrice, noPrice }: TradePanelProps) {
-  const { address, isConnected } = useAccount();
+  const account = useCurrentAccount();
+  const address = account?.address;
+  const isConnected = !!account;
   const [side, setSide] = useState<'yes' | 'no'>('yes');
   const [amount, setAmount] = useState('');
   const [tradeError, setTradeError] = useState<string | null>(null);
   const [tradeSuccess, setTradeSuccess] = useState<string | null>(null);
+  const [mintError, setMintError] = useState<string | null>(null);
 
-  const { balance, balanceRaw, refetch: refetchBalance } = useUSDCBalance(address);
-  const {
-    allowance,
-    allowanceRaw,
-    refetch: refetchAllowance,
-  } = useUSDCAllowance(address, CONTRACTS.TradingHub.address);
+  const { data: balanceData, refetch: refetchBalance } = useUSDCBalance();
+  const balance = balanceData?.balance ?? '0';
+  const balanceRaw = balanceData?.balanceRaw ?? 0n;
 
-  const {
-    mint,
-    isPending: isMinting,
-    isSuccess: mintSuccess,
-    error: mintError,
-  } = useMintUSDC();
-  const {
-    approve,
-    isPending: isApproving,
-    isSuccess: approveSuccess,
-    error: approveError,
-  } = useApproveUSDC();
+  const { mint, isPending: isMinting } = useMintUSDC();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -58,24 +44,21 @@ export function TradePanel({ marketId: _marketId, yesPrice, noPrice }: TradePane
     }
   }, [amount]);
 
-  const hasAllowance = amountRaw > 0n && allowanceRaw ? allowanceRaw >= amountRaw : false;
-  const hasBalance = amountRaw > 0n && balanceRaw ? balanceRaw >= amountRaw : false;
+  const hasBalance = amountRaw > 0n && balanceRaw >= amountRaw;
   const mintTarget = amount && Number(amount) > 0
     ? Math.min(Number(amount), MAX_MINT_AMOUNT)
     : Math.min(1000, MAX_MINT_AMOUNT);
-  const approveTarget = amount && Number(amount) > 0 ? Number(amount) : MAX_MINT_AMOUNT;
 
-  useEffect(() => {
-    if (mintSuccess) {
+  const handleMint = async () => {
+    if (!isConnected) return;
+    setMintError(null);
+    try {
+      await mint(mintTarget.toString());
       refetchBalance();
+    } catch (err: any) {
+      setMintError(err?.message || 'Mint failed');
     }
-  }, [mintSuccess, refetchBalance]);
-
-  useEffect(() => {
-    if (approveSuccess) {
-      refetchAllowance();
-    }
-  }, [approveSuccess, refetchAllowance]);
+  };
 
   const handleTrade = async () => {
     if (!isConnected || !address || !amount) return;
@@ -141,38 +124,26 @@ export function TradePanel({ marketId: _marketId, yesPrice, noPrice }: TradePane
         />
       </div>
 
-      {/* Balance & Allowance */}
+      {/* Balance */}
       {isConnected && (
         <div className="mb-3 space-y-1 text-xs text-fg-secondary">
           <div className="flex items-center justify-between">
             <span>USDC Balance</span>
             <span>{balance} USDC</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span>Allowance</span>
-            <span>{allowance} USDC</span>
-          </div>
         </div>
       )}
 
-      {/* Mint & Approve */}
+      {/* Mint */}
       {isConnected && (
         <div className="flex gap-2 mb-4">
           <button
             type="button"
-            onClick={() => address && mint(address, mintTarget.toString())}
+            onClick={handleMint}
             disabled={!address || isMinting || mintTarget <= 0}
             className="flex-1 py-2 rounded-lg bg-elevated text-fg-primary text-sm hover:bg-elevated/80 disabled:opacity-50 transition border border-border-strong"
           >
             {isMinting ? 'Minting...' : `Mint ${mintTarget} USDC`}
-          </button>
-          <button
-            type="button"
-            onClick={() => approve(CONTRACTS.TradingHub.address, approveTarget.toString())}
-            disabled={isApproving || approveTarget <= 0}
-            className="flex-1 py-2 rounded-lg bg-elevated text-fg-primary text-sm hover:bg-elevated/80 disabled:opacity-50 transition border border-border-strong"
-          >
-            {isApproving ? 'Approving...' : `Approve ${approveTarget} USDC`}
           </button>
         </div>
       )}
@@ -191,7 +162,6 @@ export function TradePanel({ marketId: _marketId, yesPrice, noPrice }: TradePane
           disabled={
             !amount ||
             parseFloat(amount) <= 0 ||
-            !hasAllowance ||
             !hasBalance ||
             isSubmitting
           }
@@ -203,15 +173,14 @@ export function TradePanel({ marketId: _marketId, yesPrice, noPrice }: TradePane
         <p className="text-center text-sm text-fg-muted">Connect wallet to trade</p>
       )}
 
-      {(mintError || approveError || tradeError) && (
+      {(mintError || tradeError) && (
         <p className="mt-3 text-xs text-red-400">
-          {tradeError || approveError?.message || mintError?.message}
+          {tradeError || mintError}
         </p>
       )}
-      {isConnected && amount && Number(amount) > 0 && (!hasBalance || !hasAllowance) && (
+      {isConnected && amount && Number(amount) > 0 && !hasBalance && (
         <p className="mt-3 text-xs text-amber-400">
-          {!hasBalance && 'Insufficient USDC balance.'}{' '}
-          {!hasAllowance && 'Approve TradingHub to spend USDC.'}
+          Insufficient USDC balance.
         </p>
       )}
       {tradeSuccess && (

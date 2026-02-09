@@ -93,11 +93,11 @@ sui client publish --gas-budget 100000000
 ```
 
 **请记录以下信息：**
-- ✏️ Package ID: `_______________________________________________`
-- ✏️ MintController ID: `_______________________________________________`
-- ✏️ TradingHub ID: `_______________________________________________`
-- ✏️ AdminCap ID: `_______________________________________________`
-- ✏️ Transaction Digest: `_______________________________________________`
+- ✏️ Package ID: `0x2def5b4908f2d60e792323dfb46d42b287664980eea70cda2c2425a9d42ef77b`
+- ✏️ MintController ID: `0xe3043a91dde0a91046522cb33a94687b8d9c00f4d5830bbe852a42fe6255c087`
+- ✏️ TradingHub ID: `0x96f2c4b03865c8da9fb0807f825e1b7d18058e7077fe2e912c43d1b834d84057`
+- ✏️ AdminCap ID: `0x7c9b0d8b13fabe7f8cdd2da60d5a9c97d2b72d98d5a899bade780f1d0466deb7`
+- ✏️ Transaction Digest: `Fmm9d7Zk7YF5Gn3PADbhvceqZHZkskRQ79s81jixyxE4`
 
 ### 步骤 4: 创建部署记录
 
@@ -107,13 +107,13 @@ sui client publish --gas-budget 100000000
 cat > deployment.json << 'EOF'
 {
   "network": "testnet",
-  "packageId": "0x...",
-  "usdcMintController": "0x...",
-  "tradingHubId": "0x...",
-  "adminCapId": "0x...",
+  "packageId": "0x2def5b4908f2d60e792323dfb46d42b287664980eea70cda2c2425a9d42ef77b",
+  "usdcMintController": "0xe3043a91dde0a91046522cb33a94687b8d9c00f4d5830bbe852a42fe6255c087",
+  "tradingHubId": "0x96f2c4b03865c8da9fb0807f825e1b7d18058e7077fe2e912c43d1b834d84057",
+  "adminCapId": "0x7c9b0d8b13fabe7f8cdd2da60d5a9c97d2b72d98d5a899bade780f1d0466deb7",
   "deployerAddress": "0x8f85591031379a46b5d9730dfa5218769773894db862e04a190dcce3c7b3c820",
-  "timestamp": "2024-02-09T08:40:00.000Z",
-  "transactionDigest": "..."
+  "timestamp": "2026-02-09T09:46:04.000Z",
+  "transactionDigest": "Fmm9d7Zk7YF5Gn3PADbhvceqZHZkskRQ79s81jixyxE4"
 }
 EOF
 ```

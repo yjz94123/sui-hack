@@ -1,9 +1,11 @@
-import { useWalletStore } from '../stores';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { TradeHistory } from '../components/trade';
 import { PositionList } from '../components/portfolio';
 
 export function PortfolioPage() {
-  const { isConnected, address } = useWalletStore();
+  const account = useCurrentAccount();
+  const isConnected = !!account;
+  const address = account?.address;
 
   if (!isConnected || !address) {
     return (

@@ -1,4 +1,3 @@
-import { parseUnits, formatUnits } from 'viem';
 import { USDC_DECIMALS, MINT_COOLDOWN } from './config';
 
 function isHexString(value: string): boolean {
@@ -8,6 +7,40 @@ function isHexString(value: string): boolean {
 /**
  * Format USDC amount from wei to human-readable string
  */
+function parseUnits(value: string, decimals: number): bigint {
+  const trimmed = value.trim();
+  if (!trimmed) throw new Error('Invalid amount');
+  const negative = trimmed.startsWith('-');
+  const normalized = negative ? trimmed.slice(1) : trimmed;
+  const parts = normalized.split('.');
+  if (parts.length > 2) throw new Error('Invalid amount');
+  const whole = parts[0] || '0';
+  const fraction = parts[1] || '';
+  if (!/^\d+$/.test(whole) || (fraction && !/^\d+$/.test(fraction))) {
+    throw new Error('Invalid amount');
+  }
+  if (fraction.length > decimals) {
+    throw new Error('Too many decimal places');
+  }
+  const paddedFraction = fraction.padEnd(decimals, '0');
+  const base = 10n ** BigInt(decimals);
+  const wholeValue = BigInt(whole || '0') * base;
+  const fractionValue = BigInt(paddedFraction || '0');
+  const result = wholeValue + fractionValue;
+  return negative ? -result : result;
+}
+
+function formatUnits(value: bigint, decimals: number): string {
+  const negative = value < 0n;
+  const abs = negative ? -value : value;
+  const base = 10n ** BigInt(decimals);
+  const whole = abs / base;
+  const fraction = abs % base;
+  const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '');
+  const result = fractionStr ? `${whole.toString()}.${fractionStr}` : whole.toString();
+  return negative ? `-${result}` : result;
+}
+
 export function formatUSDC(amount: bigint | string, decimals = 2): string {
   const value = typeof amount === 'string' ? amount : formatUnits(amount, USDC_DECIMALS);
   return Number(value).toFixed(decimals);

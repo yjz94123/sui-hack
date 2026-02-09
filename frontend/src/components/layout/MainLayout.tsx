@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { ConnectButton } from '../common/ConnectButton';
 import { useTranslation } from 'react-i18next';
 import { Globe, ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -113,11 +113,7 @@ const MainLayout: React.FC = () => {
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2" />
               <span className="text-xs text-fg-secondary font-mono">{t('nav.testnetLive')}</span>
             </div>
-            <ConnectButton 
-              accountStatus="avatar"
-              chainStatus="icon"
-              showBalance={false}
-            />
+            <ConnectButton />
           </div>
         </div>
       </header>
