@@ -1,8 +1,9 @@
-import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { useQuery } from '@tanstack/react-query';
-import { CONTRACTS, MODULES, USDC_DECIMALS, OUTCOME } from '../config';
+import { CONTRACTS, MODULES, USDC_DECIMALS, OUTCOME, USDC_COIN_TYPE } from '../config';
 import { Transaction } from '@mysten/sui/transactions';
 import { useEffect, useState } from 'react';
+import { parseUSDC } from '../utils';
 
 export interface Order {
   orderId: string;
@@ -77,6 +78,88 @@ export function useOrder(orderId?: string | number) {
   });
 }
 
+function marketIdToBytes(marketId: string): number[] {
+  return Array.from(new TextEncoder().encode(marketId));
+}
+
+/**
+ * Hook to place order (admin-only)
+ */
+export function usePlaceOrder() {
+  const account = useCurrentAccount();
+  const client = useSuiClient();
+  const { mutateAsync: signAndExecute, isPending } = useSignAndExecuteTransaction();
+
+  const placeOrder = async (params: {
+    marketId: string;
+    outcome: 'YES' | 'NO';
+    amount: string;
+    userAddress?: string;
+  }) => {
+    if (!account) throw new Error('Wallet not connected');
+    if (!CONTRACTS.PACKAGE_ID || CONTRACTS.PACKAGE_ID === '0x0') {
+      throw new Error('Package ID not configured');
+    }
+    if (!CONTRACTS.TRADING_HUB || CONTRACTS.TRADING_HUB === '0x0') {
+      throw new Error('TradingHub ID not configured');
+    }
+    if (!CONTRACTS.ADMIN_CAP || CONTRACTS.ADMIN_CAP === '0x0') {
+      throw new Error('AdminCap ID not configured');
+    }
+
+    const amountInSmallestUnit = parseUSDC(params.amount);
+    if (amountInSmallestUnit <= 0n) throw new Error('Invalid amount');
+
+    const coins = await client.getCoins({
+      owner: account.address,
+      coinType: USDC_COIN_TYPE,
+    });
+
+    if (!coins.data.length) {
+      throw new Error('No USDC coins found');
+    }
+
+    let selected = [] as typeof coins.data;
+    let total = 0n;
+    for (const coin of coins.data) {
+      selected.push(coin);
+      total += BigInt(coin.balance);
+      if (total >= amountInSmallestUnit) break;
+    }
+    if (total < amountInSmallestUnit) {
+      throw new Error('Insufficient USDC balance');
+    }
+
+    const tx = new Transaction();
+    const primary = tx.object(selected[0].coinObjectId);
+    if (selected.length > 1) {
+      tx.mergeCoins(
+        primary,
+        selected.slice(1).map((coin) => tx.object(coin.coinObjectId))
+      );
+    }
+
+    const [paymentCoin] = tx.splitCoins(primary, [tx.pure.u64(amountInSmallestUnit)]);
+    tx.moveCall({
+      target: `${CONTRACTS.PACKAGE_ID}::${MODULES.TRADING_HUB}::place_order`,
+      arguments: [
+        tx.object(CONTRACTS.ADMIN_CAP),
+        tx.object(CONTRACTS.TRADING_HUB),
+        tx.pure.address(params.userAddress || account.address),
+        tx.pure.vector('u8', marketIdToBytes(params.marketId)),
+        tx.pure.u8(params.outcome === 'YES' ? OUTCOME.YES : OUTCOME.NO),
+        paymentCoin,
+      ],
+    });
+
+    const result = await signAndExecute({ transaction: tx });
+    await client.waitForTransaction({ digest: result.digest });
+    return result;
+  };
+
+  return { placeOrder, isPending };
+}
+
 /**
  * Hook to get all order IDs for a user
  */
@@ -140,7 +223,7 @@ export function useMarketOrders(marketId?: string) {
             target: `${CONTRACTS.PACKAGE_ID}::${MODULES.TRADING_HUB}::get_market_orders`,
             arguments: [
               tx.object(CONTRACTS.TRADING_HUB),
-              tx.pure(marketIdBytes, 'vector<u8>'),
+              tx.pure.vector('u8', marketIdBytes),
             ],
           });
           return tx;
@@ -183,7 +266,7 @@ export function useUserMarketOrders(userAddress?: string, marketId?: string) {
             arguments: [
               tx.object(CONTRACTS.TRADING_HUB),
               tx.pure.address(userAddress),
-              tx.pure(marketIdBytes, 'vector<u8>'),
+              tx.pure.vector('u8', marketIdBytes),
             ],
           });
           return tx;

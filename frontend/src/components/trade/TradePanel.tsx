@@ -1,11 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { placeBuyOrder } from '../../api';
-import {
-  MAX_MINT_AMOUNT,
-  useMintUSDC,
-  useUSDCBalance,
-} from '../../contracts';
+import { MAX_MINT_AMOUNT, useMintUSDC, useUSDCBalance } from '../../contracts';
 import { parseUSDC } from '../../contracts/utils';
 
 interface TradePanelProps {
