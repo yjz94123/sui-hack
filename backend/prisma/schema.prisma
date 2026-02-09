@@ -1,0 +1,154 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 事件表 (Polymarket Event) ====================
+model Event {
+  id               String    @id                 // Polymarket event ID
+  slug             String    @unique
+  title            String
+  description      String?
+  resolutionSource String?
+  imageUrl         String?
+  iconUrl          String?
+  startDate        DateTime?
+  endDate          DateTime?
+  active           Boolean   @default(true)
+  closed           Boolean   @default(false)
+  featured         Boolean   @default(false)
+  volume           Float     @default(0)
+  volume24h        Float     @default(0)
+  liquidity        Float     @default(0)
+  openInterest     Float     @default(0)
+
+  // tags: 既保留 slug 数组便于查询，也存一份 {slug,label} 的原始结构
+  tagSlugs         String[]
+  tags             Json?
+
+  rawData          Json?
+  syncedAt         DateTime  @default(now())
+
+  markets          Market[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([active, closed])
+  @@index([volume])
+  @@index([syncedAt])
+  @@map("events")
+}
+
+// ==================== 市场表 (Polymarket Market) ====================
+model Market {
+  id              String    @id               // Polymarket market ID
+  conditionId     String?                       // Polymarket conditionId (0x...)
+  questionId      String?
+  slug            String?
+  question        String
+  description     String?
+  outcomes        String[]                     // ["Yes", "No"]
+  outcomePrices   String[]                     // ["0.65", "0.35"]
+  clobTokenIds    String[]                     // [YES_token_id, NO_token_id]
+  startDate       DateTime?
+  endDate         DateTime?
+  active          Boolean   @default(true)
+  closed          Boolean   @default(false)
+  acceptingOrders Boolean   @default(true)
+  volume          Float     @default(0)
+  volume24h       Float     @default(0)
+  liquidity       Float     @default(0)
+  lastTradePrice  String?
+  bestBid         String?
+  bestAsk         String?
+  spread          Float?
+
+  onchainMarketId String?
+  resolutionStatus Int      @default(0)        // 0:未解析 1:NO胜 2:YES胜
+  resolvedAt      DateTime?
+
+  rawData         Json?
+  syncedAt        DateTime  @default(now())
+
+  // 关联
+  eventId         String
+  event           Event     @relation(fields: [eventId], references: [id])
+
+  priceHistory    PriceHistory[]
+  analyses        AnalysisTask[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([active, closed])
+  @@index([eventId])
+  @@index([conditionId])
+  @@index([onchainMarketId])
+  @@index([syncedAt])
+  @@map("markets")
+}
+
+// ==================== 价格历史表 ====================
+model PriceHistory {
+  id          String   @id @default(cuid())
+  marketId    String
+  market      Market   @relation(fields: [marketId], references: [id])
+  yesPrice    Float
+  noPrice     Float
+  volume24h   Float?
+  timestamp   DateTime @default(now())
+
+  @@index([marketId, timestamp])
+  @@map("price_history")
+}
+
+// ==================== AI 分析任务表 ====================
+model AnalysisTask {
+  id          String   @id @default(cuid())
+  taskId      String   @unique              // UUID
+  marketId    String
+  market      Market   @relation(fields: [marketId], references: [id])
+  status      String   @default("pending")  // pending | processing | completed | failed
+  result      Json?                         // AI 分析结果 JSON
+  ogStorageKey String?                      // 0G KV key
+  errorMessage String?
+  completedAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([marketId])
+  @@index([status])
+  @@map("analysis_tasks")
+}
+
+// ==================== 交易记录表 ====================
+model TradeRecord {
+  id            String   @id @default(cuid())
+  userAddress   String                       // 用户钱包地址
+  marketId      String                       // 关联市场 (Polymarket ID)
+  positionId    String                       // 链上 position ID
+  side          String                       // buy | sell
+  outcome       String                       // YES | NO
+  amount        Float                        // token 数量 (人类可读)
+  price         Float                        // 成交价格 (0-1)
+  usdcCost      Float     @default(0)        // USDC 花费/返还
+  txHash        String?                      // 链上交易哈希
+  ogKvKey       String?                      // 0G KV Storage key
+  status        String   @default("pending") // pending | confirmed | failed
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userAddress])
+  @@index([marketId])
+  @@index([positionId])
+  @@index([status])
+  @@map("trade_records")
+}
