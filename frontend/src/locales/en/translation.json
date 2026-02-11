@@ -72,6 +72,92 @@
     "riskResolution": "Resolution",
     "riskTime": "Time",
     "riskTail": "Tail",
-    "formula": "Formula"
+    "formula": "Formula",
+    "latest3Lines": "Output (latest 3 lines)",
+    "sourceSimulation": "Simulation stream (local preset output)",
+    "sourceNetwork": "Live AI analysis stream",
+    "taskLabel": "Task: {{taskId}}",
+    "statusAssembling": "Assembling metric cards...",
+    "statusReady": "Analysis ready",
+    "statusIdle": "Idle",
+    "timelineTitle": "Task execution",
+    "timelineStatus": {
+      "completed": "All steps completed",
+      "finalizing": "Finalizing output",
+      "running": "Running workflow",
+      "waiting": "Waiting to start"
+    },
+    "taskStatus": {
+      "done": "Done",
+      "inProgress": "In progress",
+      "queued": "Queued"
+    },
+    "mappingMetrics": "Mapping parsed AI output into visual metrics...",
+    "directionYes": "YES",
+    "directionNo": "NO",
+    "compositeRisk": "Composite risk",
+    "metricDetails": {
+      "prior": "Prior probability anchors the model before processing fresh evidence.",
+      "confidence": "Confidence balances evidence quantity against disagreement penalty.",
+      "risk": "Risk = 0.5*R_res + 0.3*R_time + 0.2*R_tail",
+      "fairBand": "Fair-value decision zone used for conditional entry logic.",
+      "evidenceCount": "Number of independent evidence rows included in this pass.",
+      "evidenceWeight": "Total weighted signal mass used to update log-odds."
+    },
+    "gaugeTitle": "BAS gauge detail",
+    "gaugeDetail": "This dial reflects conviction after confidence and risk penalty are applied.",
+    "gaugeHint": "Hover to inspect, move away to keep the panel compact.",
+    "posteriorCaption": "Evidence-driven probability after weighted updates.",
+    "finalCall": "Final call",
+    "netSignalLabel": "Net signal: {{value}}",
+    "reasoning": {
+      "scope": {
+        "title": "Parsing settlement definition",
+        "detail": "Normalizing YES/NO resolution criteria and scope"
+      },
+      "signals": {
+        "title": "Collecting market sentiment",
+        "detail": "Gathering public signals from recent news and official updates"
+      },
+      "weights": {
+        "title": "Scoring evidence quality",
+        "detail": "Weighting direction, reliability, independence, and recency"
+      },
+      "posterior": {
+        "title": "Updating posterior probability",
+        "detail": "Applying weighted log-odds update with decay"
+      },
+      "bas": {
+        "title": "Calibrating BAS recommendation",
+        "detail": "Combining conviction, confidence, and risk penalties"
+      }
+    },
+    "recommendations": {
+      "waiting": {
+        "badge": "Waiting",
+        "headline": "Run analysis to generate a recommendation",
+        "detail": "Once BAS is available, this panel will explain whether the setup is actionable."
+      },
+      "highEdge": {
+        "badge": "High edge",
+        "headline": "Worth considering a {{direction}} position",
+        "detail": "BAS {{bas}} indicates strong conviction if market implied probability stays outside the fair band ({{fairLowText}} - {{fairHighText}})."
+      },
+      "conditional": {
+        "badge": "Conditional edge",
+        "headline": "{{direction}} side has potential value",
+        "detail": "BAS {{bas}} is moderate. Prefer disciplined entries only when implied odds are clearly below {{fairLowText}} (for {{directionYes}}) or above {{fairHighText}} (for {{directionNo}})."
+      },
+      "lowConviction": {
+        "badge": "Low conviction",
+        "headline": "Keep this market on watchlist",
+        "detail": "BAS {{bas}} is not strong enough for confident sizing. Wait for clearer evidence before committing to {{direction}}."
+      },
+      "avoid": {
+        "badge": "Avoid for now",
+        "headline": "No attractive edge at current confidence",
+        "detail": "BAS {{bas}} suggests limited opportunity. Better to skip or wait for new data before taking a {{direction}} stance."
+      }
+    }
   }
 }

@@ -3,51 +3,117 @@
 @tailwind utilities;
 
 @layer base {
-  /* Light theme CSS variables (default) */
   :root {
     color-scheme: light;
-    --color-bg-base: 255 255 255;
-    --color-bg-surface: 249 250 251;
-    --color-bg-elevated: 243 244 246;
-    --color-border: 229 231 235;
-    --color-border-strong: 209 213 219;
-    --color-text-primary: 17 24 39;
-    --color-text-secondary: 75 85 99;
-    --color-text-muted: 156 163 175;
+    --color-bg-base: 244 247 252;
+    --color-bg-surface: 255 255 255;
+    --color-bg-elevated: 239 244 251;
+    --color-bg-overlay: 229 236 247;
+
+    --color-border: 208 217 232;
+    --color-border-strong: 181 193 214;
+
+    --color-text-primary: 14 20 30;
+    --color-text-secondary: 50 63 84;
+    --color-text-muted: 92 108 132;
+
+    --color-accent: 10 132 255;
+    --color-accent-soft: 214 231 255;
+    --color-success: 52 199 89;
+    --color-danger: 255 69 58;
   }
 
-  /* Dark theme CSS variables */
   .dark {
     color-scheme: dark;
-    --color-bg-base: 2 6 23;
-    --color-bg-surface: 15 23 42;
-    --color-bg-elevated: 30 41 59;
-    --color-border: 51 65 85;
-    --color-border-strong: 71 85 105;
-    --color-text-primary: 248 250 252;
-    --color-text-secondary: 226 232 240;
-    --color-text-muted: 148 163 184;
+    --color-bg-base: 9 12 18;
+    --color-bg-surface: 18 22 30;
+    --color-bg-elevated: 27 33 45;
+    --color-bg-overlay: 34 41 56;
+
+    --color-border: 54 63 81;
+    --color-border-strong: 77 88 111;
+
+    --color-text-primary: 243 246 251;
+    --color-text-secondary: 188 197 214;
+    --color-text-muted: 137 149 172;
+
+    --color-accent: 64 156 255;
+    --color-accent-soft: 25 48 78;
+    --color-success: 92 214 127;
+    --color-danger: 255 108 100;
+  }
+
+  * {
+    border-color: rgb(var(--color-border));
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
   }
 
   body {
-    @apply antialiased;
-    background-color: rgb(var(--color-bg-base));
+    @apply antialiased font-sans;
+    background:
+      radial-gradient(circle at top left, rgb(var(--color-accent) / 0.1), transparent 42%),
+      radial-gradient(circle at 86% -16%, rgb(var(--color-accent) / 0.09), transparent 32%),
+      radial-gradient(circle at 72% -24%, rgb(167 139 250 / 0.10), transparent 30%),
+      rgb(var(--color-bg-base));
+    color: rgb(var(--color-text-primary));
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.015em;
+    font-weight: 600;
     color: rgb(var(--color-text-primary));
   }
 
-  /* 自定义滚动条 */
+  p {
+    color: rgb(var(--color-text-secondary));
+  }
+
+  a {
+    color: inherit;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background-color: rgb(var(--color-accent) / 0.24);
+    color: rgb(var(--color-text-primary));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--color-accent));
+    outline-offset: 2px;
+  }
+
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
   }
 
   ::-webkit-scrollbar-track {
-    background-color: rgb(var(--color-bg-surface));
+    background-color: rgb(var(--color-bg-elevated));
   }
 
   ::-webkit-scrollbar-thumb {
     background-color: rgb(var(--color-border-strong));
-    @apply rounded-full;
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -55,22 +121,67 @@
   }
 }
 
+@layer components {
+  .app-panel {
+    @apply rounded-2xl border border-border/90 bg-surface;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 6px 20px rgba(17, 24, 39, 0.05);
+  }
+
+  .app-muted-panel {
+    @apply rounded-2xl border border-border/85 bg-elevated/70;
+  }
+
+  .app-pill {
+    @apply inline-flex items-center rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-fg-secondary;
+  }
+
+  .app-input {
+    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-fg-primary placeholder:text-fg-muted transition;
+  }
+
+  .app-input:focus {
+    @apply border-accent;
+    box-shadow: 0 0 0 4px rgb(var(--color-accent) / 0.14);
+  }
+
+  .app-btn {
+    @apply inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium transition;
+  }
+
+  .app-btn-primary {
+    @apply app-btn bg-accent text-white hover:brightness-110;
+    box-shadow: 0 6px 16px rgb(var(--color-accent) / 0.3);
+  }
+
+  .app-btn-secondary {
+    @apply app-btn border border-border bg-surface text-fg-secondary hover:bg-elevated hover:text-fg-primary;
+  }
+
+  .app-btn-wallet {
+    @apply app-btn border border-border-strong/75 bg-surface text-fg-primary hover:border-border-strong hover:bg-surface;
+    box-shadow: none !important;
+  }
+
+  .app-stat {
+    @apply rounded-xl border border-border/85 bg-elevated/70 p-4;
+  }
+}
+
 @layer utilities {
-  /* Hide scrollbar for Chrome, Safari and Opera */
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
 
-  /* Hide scrollbar for IE, Edge and Firefox */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
 
-  /* Smooth animations */
-  .transition-all {
-    transition-property: all;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .frosted {
+    backdrop-filter: blur(10px);
   }
 }

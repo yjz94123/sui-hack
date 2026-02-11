@@ -1,27 +1,46 @@
-import { apiGet, apiPost } from './client';
-import { baseURL } from './client';
+import { apiGet, apiPost } from "./client";
+import { baseURL } from "./client";
+import { isSimMode } from "./sim-mode";
+import {
+  getMockAnalyses,
+  getMockAnalysisDetail,
+  getMockEventDetail,
+  getMockEvents,
+  getMockOrderBook,
+  getMockPriceHistory,
+  streamMockAnalysis,
+  triggerMockAnalysis,
+} from "./simulated-data";
 import type {
   EventSummary,
   EventDetail,
   OrderBookData,
   PriceHistory,
   AnalysisTask,
-} from '@og-predict/shared';
+} from "@og-predict/shared";
 
 /** 获取事件列表 */
 export function fetchEvents(params?: {
   limit?: number;
   offset?: number;
   tag?: string;
-  sortBy?: 'volume' | 'volume24h' | 'liquidity' | 'endDate' | 'createdAt';
-  order?: 'asc' | 'desc';
+  sortBy?: "volume" | "volume24h" | "liquidity" | "endDate" | "createdAt";
+  order?: "asc" | "desc";
   search?: string;
 }) {
-  return apiGet<EventSummary[]>('/markets', params);
+  if (isSimMode) {
+    return getMockEvents(params);
+  }
+
+  return apiGet<EventSummary[]>("/markets", params);
 }
 
 /** 获取事件详情（含子市场） */
 export function fetchEventDetail(eventId: string) {
+  if (isSimMode) {
+    return getMockEventDetail(eventId);
+  }
+
   return apiGet<EventDetail>(`/markets/${eventId}`);
 }
 
@@ -31,6 +50,10 @@ export function fetchOrderBook(
   marketId: string,
   params?: { depth?: number }
 ) {
+  if (isSimMode) {
+    return getMockOrderBook(marketId);
+  }
+
   return apiGet<OrderBookData>(`/markets/${eventId}/orderbook/${marketId}`, params);
 }
 
@@ -38,8 +61,12 @@ export function fetchOrderBook(
 export function fetchPriceHistory(
   eventId: string,
   marketId: string,
-  params?: { interval?: '1h' | '1d' | '1w' | 'max'; outcome?: 'yes' | 'no' }
+  params?: { interval?: "1h" | "1d" | "1w" | "max"; outcome?: "yes" | "no" }
 ) {
+  if (isSimMode) {
+    return getMockPriceHistory(marketId, params?.outcome);
+  }
+
   return apiGet<PriceHistory>(`/markets/${eventId}/price-history/${marketId}`, params);
 }
 
@@ -49,6 +76,10 @@ export function triggerAnalysis(
   marketId: string,
   body?: { question?: string }
 ) {
+  if (isSimMode) {
+    return triggerMockAnalysis(marketId);
+  }
+
   return apiPost<AnalysisTask>(`/markets/${eventId}/analyze`, {
     marketId,
     ...(body ?? {}),
@@ -58,21 +89,29 @@ export function triggerAnalysis(
 /** 获取市场分析列表 */
 export function fetchAnalyses(
   eventId: string,
-  params?: { marketId?: string; status?: 'completed' | 'failed'; limit?: number; offset?: number }
+  params?: { marketId?: string; status?: "completed" | "failed"; limit?: number; offset?: number }
 ) {
+  if (isSimMode) {
+    return getMockAnalyses(params?.marketId);
+  }
+
   return apiGet<AnalysisTask[]>(`/markets/${eventId}/analyses`, params);
 }
 
 /** 获取分析详情 */
 export function fetchAnalysisDetail(taskId: string) {
+  if (isSimMode) {
+    return getMockAnalysisDetail(taskId);
+  }
+
   return apiGet<AnalysisTask>(`/analysis/${taskId}`);
 }
 
 export type AnalysisStreamMessage =
-  | { type: 'task'; taskId: string }
-  | { type: 'delta'; content: string }
-  | { type: 'done'; taskId: string; result: unknown | null }
-  | { type: 'error'; taskId: string; message: string };
+  | { type: "task"; taskId: string }
+  | { type: "delta"; content: string }
+  | { type: "done"; taskId: string; result: unknown | null }
+  | { type: "error"; taskId: string; message: string };
 
 /** 流式触发 AI 分析（NDJSON） */
 export async function streamAnalysis(
@@ -84,23 +123,28 @@ export async function streamAnalysis(
     onMessage: (msg: AnalysisStreamMessage) => void;
   }
 ): Promise<void> {
+  if (isSimMode) {
+    await streamMockAnalysis(options);
+    return;
+  }
+
   const resp = await fetch(`${baseURL}/markets/${eventId}/analyze/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ marketId, ...(body ?? {}) }),
     signal: options.signal,
   });
 
   if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
+    const text = await resp.text().catch(() => "");
     throw new Error(text || resp.statusText);
   }
 
-  if (!resp.body) throw new Error('No response body');
+  if (!resp.body) throw new Error("No response body");
 
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = '';
+  let buffer = "";
 
   while (true) {
     const { value, done } = await reader.read();
@@ -108,7 +152,7 @@ export async function streamAnalysis(
     buffer += decoder.decode(value, { stream: true });
 
     let nl: number;
-    while ((nl = buffer.indexOf('\n')) !== -1) {
+    while ((nl = buffer.indexOf("\n")) !== -1) {
       const line = buffer.slice(0, nl).trim();
       buffer = buffer.slice(nl + 1);
       if (!line) continue;
@@ -116,7 +160,7 @@ export async function streamAnalysis(
       try {
         const msg = JSON.parse(line) as AnalysisStreamMessage;
         options.onMessage(msg);
-        if (msg.type === 'done' || msg.type === 'error') return;
+        if (msg.type === "done" || msg.type === "error") return;
       } catch {
         // ignore invalid NDJSON line
       }

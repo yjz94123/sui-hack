@@ -26,9 +26,12 @@ export const config = {
     compute: {
       privateKey: process.env.COMPUTE_PRIVATE_KEY!,
       apiKey: process.env.OG_COMPUTE_API_KEY || '',
-      baseUrl: process.env.OG_COMPUTE_BASE_URL || 'https://compute-network-6.integratenetwork.work/v1/proxy',
-      model: process.env.OG_COMPUTE_MODEL || 'qwen/qwen-2.5-7b-instruct',
-      maxTokens: parseInt(process.env.OG_COMPUTE_MAX_TOKENS || '4096', 10),
+      baseUrl: process.env.OG_COMPUTE_BASE_URL || 'https://api.moonshot.cn/v1',
+      model: process.env.OG_COMPUTE_MODEL || 'kimi-k2.5',
+      maxTokens: parseInt(process.env.OG_COMPUTE_MAX_TOKENS || '50000', 10),
+      temperature: parseFloat(process.env.OG_COMPUTE_TEMPERATURE || '0.6'),
+      thinkingType: process.env.OG_COMPUTE_THINKING_TYPE || '',
+      reasoningEffort: process.env.OG_COMPUTE_REASONING_EFFORT || '',
     },
   },
 

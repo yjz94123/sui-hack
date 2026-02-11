@@ -23,16 +23,15 @@ export function loadBasPromptTemplate(): string {
   const envPath = process.env.AI_PROMPT_PATH;
   const cwd = process.cwd();
 
-  const candidates = envPath
-    ? [path.resolve(envPath)]
-    : [
-        // if backend is run from repo root
-        path.resolve(cwd, 'prompt.MD'),
-        path.resolve(cwd, 'prompt.md'),
-        // if backend is run from backend/
-        path.resolve(cwd, '../prompt.MD'),
-        path.resolve(cwd, '../prompt.md'),
-      ];
+  const candidates = [
+    ...(envPath ? [path.resolve(envPath)] : []),
+    // if backend is run from repo root
+    path.resolve(cwd, 'prompt.MD'),
+    path.resolve(cwd, 'prompt.md'),
+    // if backend is run from backend/
+    path.resolve(cwd, '../prompt.MD'),
+    path.resolve(cwd, '../prompt.md'),
+  ];
 
   const promptPath = firstExistingPath(candidates);
   if (!promptPath) {

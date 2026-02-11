@@ -1,297 +1,252 @@
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { BarChart3, ChevronLeft, ChevronRight, Clock, Info, Layers3 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useEventDetail, useOrderBook, usePriceHistory } from '../hooks';
 import { OrderBook, PriceChart } from '../components/market';
 import { TradePanel } from '../components/trade';
 import { AnalysisPanel } from '../components/ai';
 import { Loading, ErrorMessage } from '../components/common';
-import { ChevronLeft, ChevronDown, ChevronRight, Clock, BarChart2, Info } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
 
-import { useTranslation } from 'react-i18next';
+function formatMoney(value: number): string {
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
+  if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
+  return `$${value.toLocaleString()}`;
+}
 
-/** Inline expanded panel for a selected sub-market */
-function MarketExpandedPanel({
-  eventId,
-  marketId,
-}: {
-  eventId: string;
-  marketId: string;
-}) {
-  const { t } = useTranslation();
-  const { data: orderBookData, isLoading: obLoading } = useOrderBook(eventId, marketId);
-  const { data: priceData, isLoading: priceLoading } = usePriceHistory(eventId, marketId);
-  const [activeTab, setActiveTab] = useState<'orderbook' | 'chart'>('orderbook');
+function formatDate(value: string | undefined): string {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--';
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
 
-  return (
-    <div className="mt-2 space-y-3">
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border-strong pb-0">
-        <button
-          onClick={(e) => { e.stopPropagation(); setActiveTab('orderbook'); }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-t transition ${
-            activeTab === 'orderbook'
-              ? 'bg-elevated text-fg-primary border-b-2 border-primary-500'
-              : 'text-fg-muted hover:text-fg-secondary'
-          }`}
-        >
-          {t('marketDetail.orderBook')}
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setActiveTab('chart'); }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-t transition flex items-center gap-1 ${
-            activeTab === 'chart'
-              ? 'bg-elevated text-fg-primary border-b-2 border-primary-500'
-              : 'text-fg-muted hover:text-fg-secondary'
-          }`}
-        >
-          <BarChart2 className="w-3 h-3" />
-          {t('marketDetail.priceHistory')}
-        </button>
-      </div>
-
-      {/* Content */}
-      {activeTab === 'orderbook' && (
-        <OrderBook data={orderBookData?.data} isLoading={obLoading} />
-      )}
-      {activeTab === 'chart' && (
-        <div className="min-h-[200px]">
-          <PriceChart data={priceData?.data} isLoading={priceLoading} />
-        </div>
-      )}
-    </div>
-  );
+function parsePrice(input: string | undefined): number {
+  const value = Number(input);
+  return Number.isFinite(value) ? value : 0;
 }
 
 export function MarketDetailPage() {
   const { t } = useTranslation();
   const { eventId } = useParams<{ eventId: string }>();
+
   const { data: eventData, isLoading, error } = useEventDetail(eventId);
   const event = eventData?.data;
-  const [selectedMarketId, setSelectedMarketId] = useState<string | undefined>(undefined);
+  const [selectedMarketId, setSelectedMarketId] = useState<string | undefined>();
 
   useEffect(() => {
     setSelectedMarketId(undefined);
   }, [eventId]);
 
   useEffect(() => {
-    if (!event) return;
+    if (!event?.markets?.length) return;
     if (selectedMarketId) return;
-    if (event.markets?.length === 1) setSelectedMarketId(event.markets[0].marketId);
+    setSelectedMarketId(event.markets[0].marketId);
   }, [event, selectedMarketId]);
+
+  const markets = event?.markets ?? [];
 
   const market = useMemo(() => {
-    if (!event?.markets?.length) return undefined;
-    return event.markets.find((m) => m.marketId === selectedMarketId);
-  }, [event, selectedMarketId]);
+    if (!markets.length) return undefined;
+    return markets.find((item) => item.marketId === selectedMarketId) ?? markets[0];
+  }, [markets, selectedMarketId]);
 
-  const { data: orderBookData, isLoading: obLoading } = useOrderBook(event?.eventId, market?.marketId);
+  const { data: orderBookData, isLoading: orderBookLoading } = useOrderBook(event?.eventId, market?.marketId);
   const { data: priceData, isLoading: priceLoading } = usePriceHistory(event?.eventId, market?.marketId);
 
   if (isLoading) return <Loading text={t('common.loading')} />;
   if (error) return <ErrorMessage message={error.message || t('common.error')} />;
   if (!event) return <ErrorMessage message={t('marketDetail.marketUnavailable')} />;
 
-  const volume = event.volume || 0;
-  const liquidity = event.liquidity || 0;
-
-  const formatMoney = (val: number) => {
-    if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
-    if (val >= 1e3) return `$${(val / 1e3).toFixed(1)}k`;
-    return `$${val.toLocaleString()}`;
-  };
-
-  const handleMarketClick = (marketId: string) => {
-    setSelectedMarketId(selectedMarketId === marketId ? undefined : marketId);
-  };
+  const yesPrice = parsePrice(market?.outcomePrices?.[0]);
+  const noPrice = parsePrice(market?.outcomePrices?.[1]);
 
   return (
-    <div className="max-w-7xl mx-auto pb-12">
-      {/* Breadcrumb & Navigation */}
-      <div className="flex items-center gap-2 mb-6 text-sm text-fg-secondary">
-        <Link to="/" className="hover:text-fg-primary flex items-center gap-1">
-          <ChevronLeft className="w-4 h-4" />
-          Markets
+    <div className="space-y-6 pb-10">
+      <div className="flex items-center gap-2 text-sm text-fg-secondary">
+        <Link to="/" className="inline-flex items-center gap-1 transition hover:text-fg-primary">
+          <ChevronLeft className="h-4 w-4" />
+          {t('nav.explorer')}
         </Link>
         <span>/</span>
-        <span className="text-fg-primary truncate max-w-[200px]">{event.title}</span>
+        <span className="truncate text-fg-primary">{event.title}</span>
       </div>
 
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8 border-b border-border pb-8">
-        <div className="flex-1">
-          <div className="flex items-start gap-4">
-            {event.imageUrl && (
-              <img
-                src={event.imageUrl}
-                alt={event.title}
-                className="w-16 h-16 rounded-lg object-cover bg-elevated"
-              />
-            )}
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-fg-primary mb-3">{event.title}</h1>
-              <div className="flex flex-wrap items-center gap-6 text-sm">
-                <div className="flex items-center gap-2 text-fg-secondary">
-                  <Clock className="w-4 h-4" />
-                  <span>
-                    {t('marketDetail.expires')} {new Date(event.endDate).toLocaleDateString()}
-                  </span>
+      <section className="app-panel px-5 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-4">
+              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-border bg-elevated">
+                {event.imageUrl ? (
+                  <img src={event.imageUrl} alt={event.title} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center text-xs font-semibold tracking-[0.2em] text-fg-muted">
+                    EV
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 space-y-2">
+                <h1 className="text-2xl font-semibold tracking-tight text-fg-primary sm:text-[2rem]">{event.title}</h1>
+                {event.description && <p className="max-w-3xl text-sm text-fg-secondary">{event.description}</p>}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {(event.tags ?? []).map((tag) => (
+                    <span key={tag.slug} className="app-pill text-[11px]">
+                      {tag.label}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex gap-4">
-          {/* Rules Button */}
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-elevated text-fg-primary hover:bg-elevated/80 transition border border-border-strong">
-            <Info className="w-4 h-4" />
+          <button className="app-btn-secondary h-10 shrink-0 gap-2 px-3">
+            <Info className="h-4 w-4" />
             <span>{t('marketDetail.rules')}</span>
           </button>
         </div>
-      </div>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-surface/60 rounded-lg p-3 border border-border">
-          <div className="text-xs text-fg-muted mb-1">{t('marketDetail.volume')}</div>
-          <div className="text-lg font-medium text-fg-primary">{formatMoney(volume)}</div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="app-stat">
+            <div className="text-[11px] uppercase tracking-wide text-fg-muted">{t('marketDetail.volume')}</div>
+            <div className="mt-1 text-lg font-semibold text-fg-primary">{formatMoney(event.volume || 0)}</div>
+          </div>
+          <div className="app-stat">
+            <div className="text-[11px] uppercase tracking-wide text-fg-muted">{t('marketDetail.liquidity')}</div>
+            <div className="mt-1 text-lg font-semibold text-fg-primary">{formatMoney(event.liquidity || 0)}</div>
+          </div>
+          <div className="app-stat">
+            <div className="text-[11px] uppercase tracking-wide text-fg-muted">{t('marketDetail.expires')}</div>
+            <div className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-fg-primary">
+              <Clock className="h-3.5 w-3.5 text-fg-muted" />
+              {formatDate(event.endDate)}
+            </div>
+          </div>
+          <div className="app-stat">
+            <div className="text-[11px] uppercase tracking-wide text-fg-muted">{t('marketDetail.markets')}</div>
+            <div className="mt-1 text-lg font-semibold text-fg-primary">{markets.length}</div>
+          </div>
         </div>
-        <div className="bg-surface/60 rounded-lg p-3 border border-border">
-          <div className="text-xs text-fg-muted mb-1">{t('marketDetail.liquidity')}</div>
-          <div className="text-lg font-medium text-fg-primary">{formatMoney(liquidity)}</div>
-        </div>
-      </div>
+      </section>
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column - Markets list with inline expansion */}
-        <div className="lg:col-span-8 space-y-6">
-          {/* Markets selector */}
-          <div className="bg-surface rounded-xl border border-border p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-fg-primary">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <section className="space-y-5 lg:col-span-8">
+          <div className="app-panel p-4 sm:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">
                 {t('marketDetail.markets')}
-                <span className="ml-2 text-xs text-fg-muted font-normal">
-                  ({event.markets?.length || 0})
+              </h2>
+              {market && (
+                <span className="rounded-full border border-border bg-elevated px-2.5 py-1 text-xs text-fg-secondary">
+                  {t('marketDetail.selected')}
                 </span>
-              </h3>
-              <div className="text-xs text-fg-muted">
-                {market ? (
-                  <span className="text-fg-secondary">{t('marketDetail.selected')}</span>
-                ) : (
-                  <span>{t('marketDetail.selectMarket')}</span>
-                )}
+              )}
+            </div>
+
+            {markets.length === 0 ? (
+              <div className="app-muted-panel px-4 py-8 text-center text-sm text-fg-muted">
+                {t('marketDetail.marketUnavailable')}
               </div>
-            </div>
-
-            <div className="space-y-2">
-              {(event.markets || []).map((m) => {
-                const yes = parseFloat(m.outcomePrices?.[0] || '0');
-                const no = parseFloat(m.outcomePrices?.[1] || '0');
-                const selected = m.marketId === selectedMarketId;
-
-                return (
-                  <div
-                    key={m.marketId}
-                    className={`rounded-lg border transition ${
-                      selected
-                        ? 'bg-elevated border-primary-600/60'
-                        : 'bg-surface border-border hover:bg-elevated/40 hover:border-border-strong'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleMarketClick(m.marketId)}
-                      className="w-full flex items-start justify-between gap-3 px-3 py-2 text-left"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm text-fg-primary leading-snug max-h-[2.6em] overflow-hidden">
-                          {m.question}
-                        </div>
-                        <div className="mt-1 text-xs text-fg-muted">
-                          {t('marketDetail.volume')}: {formatMoney(Number(m.volume || 0))}
-                        </div>
-                      </div>
-                      <span className="mt-0.5 text-fg-muted">
-                        {selected ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                      </span>
-                    </button>
-
-                    {/* Expanded panel: order book + price chart */}
-                    {selected && event.eventId && (
-                      <div className="px-3 pb-3 border-t border-border/50">
-                        <MarketExpandedPanel
-                          eventId={event.eventId}
-                          marketId={m.marketId}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="bg-surface rounded-xl border border-border p-1 min-h-[400px]">
-             {/* Chart Header */}
-             <div className="flex items-center justify-between p-4 border-b border-border/50">
-                <div className="flex items-center gap-2">
-                   <BarChart2 className="w-4 h-4 text-fg-secondary" />
-                   <span className="text-sm font-medium text-fg-primary">{t('marketDetail.priceHistory')}</span>
-                </div>
-             </div>
-             
-             <div className="p-4">
-                {market ? (
-                  <PriceChart data={priceData?.data} isLoading={priceLoading} />
-                ) : (
-                  <div className="h-48 flex items-center justify-center text-fg-muted text-sm">
-                    {t('marketDetail.selectMarketToView')}
-                  </div>
-                )}
-             </div>
-          </div>
-          
-           <div className="bg-surface rounded-xl border border-border p-1">
-               <div className="p-4 border-b border-border/50">
-                  <h3 className="text-sm font-medium text-fg-primary">{t('marketDetail.orderBook')}</h3>
-               </div>
-               <div className="p-4">
-                 {market ? (
-                   <OrderBook data={orderBookData?.data} isLoading={obLoading} />
-                 ) : (
-                   <div className="py-10 text-center text-sm text-fg-muted">
-                     {t('marketDetail.selectMarketToView')}
-                   </div>
-                 )}
-               </div>
-           </div>
-        </div>
-
-        {/* Right Column (Trade, AI) - 4 cols */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="sticky top-24 space-y-6">
-            {market ? (
-              <TradePanel
-                marketId={market.marketId}
-                yesPrice={parseFloat(market.outcomePrices?.[0] || '0')}
-                noPrice={parseFloat(market.outcomePrices?.[1] || '0')}
-              />
             ) : (
-              <div className="bg-surface rounded-xl border border-border p-8 text-center text-fg-muted">
-                {t('marketDetail.selectMarket')}
+              <div className="space-y-2.5">
+                {markets.map((item) => {
+                  const selected = item.marketId === market?.marketId;
+                  const yes = parsePrice(item.outcomePrices?.[0]);
+                  const no = parsePrice(item.outcomePrices?.[1]);
+
+                  return (
+                    <button
+                      key={item.marketId}
+                      type="button"
+                      onClick={() => setSelectedMarketId(item.marketId)}
+                      className={
+                        selected
+                          ? 'w-full rounded-xl border border-accent/35 bg-accent-soft/70 p-3 text-left transition'
+                          : 'w-full rounded-xl border border-border bg-surface p-3 text-left transition hover:border-border-strong hover:bg-elevated/45'
+                      }
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-fg-primary">{item.question}</p>
+                          <p className="mt-1 text-xs text-fg-muted">
+                            {t('marketDetail.volume')}: {formatMoney(Number(item.volume || 0))}
+                          </p>
+                        </div>
+                        <ChevronRight className={selected ? 'h-4 w-4 text-accent' : 'h-4 w-4 text-fg-muted'} />
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-2 text-xs">
+                        <span className="rounded-md border border-success/30 bg-success/10 px-2 py-1 font-medium text-success">
+                          Yes {(yes * 100).toFixed(1)}¢
+                        </span>
+                        <span className="rounded-md border border-danger/30 bg-danger/10 px-2 py-1 font-medium text-danger">
+                          No {(no * 100).toFixed(1)}¢
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
+            )}
+          </div>
+
+          <div className="app-panel p-4 sm:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-fg-secondary" />
+                <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">{t('marketDetail.priceHistory')}</h2>
+              </div>
+              {market && <span className="text-xs text-fg-muted">{market.question}</span>}
+            </div>
+
+            {market ? (
+              <PriceChart data={priceData?.data} isLoading={priceLoading} />
+            ) : (
+              <div className="app-muted-panel px-4 py-10 text-center text-sm text-fg-muted">
+                {t('marketDetail.selectMarketToView')}
+              </div>
+            )}
+          </div>
+
+          <div className="app-panel p-4 sm:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Layers3 className="h-4 w-4 text-fg-secondary" />
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">{t('marketDetail.orderBook')}</h2>
+            </div>
+
+            {market ? (
+              <OrderBook data={orderBookData?.data} isLoading={orderBookLoading} />
+            ) : (
+              <div className="app-muted-panel px-4 py-10 text-center text-sm text-fg-muted">
+                {t('marketDetail.selectMarketToView')}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <aside className="space-y-5 lg:col-span-4">
+          <div className="space-y-5 lg:sticky lg:top-24">
+            {market ? (
+              <TradePanel marketId={market.marketId} yesPrice={yesPrice} noPrice={noPrice} />
+            ) : (
+              <div className="app-panel px-5 py-8 text-center text-sm text-fg-muted">{t('marketDetail.selectMarket')}</div>
             )}
 
             {market ? (
               <AnalysisPanel eventId={event.eventId} marketId={market.marketId} />
             ) : (
-              <div className="bg-surface rounded-xl border border-border p-6 text-center text-fg-muted text-sm">
+              <div className="app-panel px-5 py-8 text-center text-sm text-fg-muted">
                 {t('marketDetail.selectMarketToAnalyze')}
               </div>
             )}
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

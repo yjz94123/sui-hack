@@ -334,7 +334,7 @@ marketsRouter.post('/:eventId/analyze', validate(analyzeBodySchema, 'body'), asy
 
     const task = await aiService.createAnalysis({
       marketId,
-      event: body.question ?? event.title,
+      event: body.question ?? market.question ?? event.title,
       resolutionDate: event.endDate?.toISOString(),
       resolutionCriteria: event.resolutionSource ?? undefined,
     });
@@ -388,7 +388,7 @@ marketsRouter.post('/:eventId/analyze/stream', validate(analyzeBodySchema, 'body
 
     const today = new Date().toISOString().slice(0, 10);
     const prompt = buildBasPrompt({
-      event: body.question ?? event.title,
+      event: body.question ?? market.question ?? event.title,
       today,
       resolutionDate: event.endDate?.toISOString() ?? '',
       resolutionCriteria: event.resolutionSource ?? '',

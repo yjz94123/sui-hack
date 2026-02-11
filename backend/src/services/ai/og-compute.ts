@@ -2,8 +2,8 @@ import { logger } from '../../utils/logger';
 import { config } from '../../config';
 
 /**
- * 0G Compute Network 客户端
- * 使用 OpenAI 兼容的 Chat Completions 接口
+ * OpenAI 兼容 AI 客户端
+ * 可通过环境变量接入不同服务商（如 Moonshot Kimi）
  */
 export class OgComputeClient {
   private initialized = false;
@@ -11,7 +11,7 @@ export class OgComputeClient {
   async init(): Promise<void> {
     // 目前通过 OpenAI 兼容 HTTP 接口直连；保留 init 以便未来接入 Broker SDK。
     this.initialized = true;
-    logger.info('0G Compute client initialized');
+    logger.info('AI client initialized');
   }
 
   private getChatCompletionsUrl(): string {
@@ -25,13 +25,35 @@ export class OgComputeClient {
     }
   }
 
+  private buildChatCompletionBody(messages: Array<{ role: string; content: string }>, stream: boolean): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+      model: config.og.compute.model,
+      messages,
+      temperature: config.og.compute.temperature,
+      max_tokens: config.og.compute.maxTokens,
+      stream,
+    };
+
+    const thinkingType = config.og.compute.thinkingType.trim();
+    if (thinkingType) {
+      payload.thinking = { type: thinkingType };
+    }
+
+    const reasoningEffort = config.og.compute.reasoningEffort.trim();
+    if (reasoningEffort) {
+      payload.reasoning_effort = reasoningEffort;
+    }
+
+    return payload;
+  }
+
   /** 获取 AI 聊天完成 */
   async chatCompletion(messages: Array<{ role: string; content: string }>): Promise<string> {
     if (!this.initialized) await this.init();
     this.assertConfigured();
 
     const url = this.getChatCompletionsUrl();
-    logger.debug({ messageCount: messages.length, url }, 'Calling 0G Compute for AI completion');
+    logger.debug({ messageCount: messages.length, url }, 'Calling AI completion endpoint');
 
     const resp = await fetch(url, {
       method: 'POST',
@@ -39,24 +61,18 @@ export class OgComputeClient {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.og.compute.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.og.compute.model,
-        messages,
-        temperature: 0.2,
-        max_tokens: config.og.compute.maxTokens,
-        stream: false,
-      }),
+      body: JSON.stringify(this.buildChatCompletionBody(messages, false)),
     });
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      throw new Error(`0G Compute error ${resp.status}: ${text || resp.statusText}`);
+      throw new Error(`AI provider error ${resp.status}: ${text || resp.statusText}`);
     }
 
     const data = (await resp.json().catch(() => null)) as any;
     const content = data?.choices?.[0]?.message?.content;
     if (typeof content !== 'string') {
-      throw new Error('0G Compute response missing choices[0].message.content');
+      throw new Error('AI response missing choices[0].message.content');
     }
     return content;
   }
@@ -70,7 +86,7 @@ export class OgComputeClient {
     this.assertConfigured();
 
     const url = this.getChatCompletionsUrl();
-    logger.debug({ messageCount: messages.length, url }, 'Calling 0G Compute for streaming completion');
+    logger.debug({ messageCount: messages.length, url }, 'Calling streaming AI completion endpoint');
 
     const resp = await fetch(url, {
       method: 'POST',
@@ -79,19 +95,13 @@ export class OgComputeClient {
         Accept: 'text/event-stream',
         Authorization: `Bearer ${config.og.compute.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.og.compute.model,
-        messages,
-        temperature: 0.2,
-        max_tokens: config.og.compute.maxTokens,
-        stream: true,
-      }),
+      body: JSON.stringify(this.buildChatCompletionBody(messages, true)),
       signal: options.signal,
     });
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      throw new Error(`0G Compute error ${resp.status}: ${text || resp.statusText}`);
+      throw new Error(`AI provider error ${resp.status}: ${text || resp.statusText}`);
     }
 
     const contentType = resp.headers.get('content-type') || '';
@@ -99,13 +109,13 @@ export class OgComputeClient {
       const data = (await resp.json().catch(() => null)) as any;
       const content = data?.choices?.[0]?.message?.content;
       if (typeof content !== 'string') {
-        throw new Error('0G Compute response missing choices[0].message.content');
+        throw new Error('AI response missing choices[0].message.content');
       }
       options.onDelta(content);
       return content;
     }
 
-    if (!resp.body) throw new Error('0G Compute response has no body');
+    if (!resp.body) throw new Error('AI streaming response has no body');
 
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -165,7 +175,7 @@ export class OgComputeClient {
     return full;
   }
 
-  /** 获取 0G Compute 可用服务列表 */
+  /** 获取可用服务列表 */
   async listServices(): Promise<unknown[]> {
     // TODO: const broker = await createBroker(wallet);
     // TODO: return broker.inference.listService();
