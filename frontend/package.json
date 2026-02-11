@@ -22,6 +22,7 @@
     "lucide-react": "^0.563.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-gauge-component": "^2.0.26",
     "react-i18next": "^16.5.4",
     "react-router-dom": "^7.13.0",
     "recharts": "^2.15.0",

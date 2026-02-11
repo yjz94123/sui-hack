@@ -72,6 +72,92 @@
     "riskResolution": "结算",
     "riskTime": "时间",
     "riskTail": "尾部",
-    "formula": "公式"
+    "formula": "公式",
+    "latest3Lines": "输出（最新 3 行）",
+    "sourceSimulation": "模拟流（本地预设输出）",
+    "sourceNetwork": "AI 分析引擎实时输出",
+    "taskLabel": "任务：{{taskId}}",
+    "statusAssembling": "正在组装指标卡片...",
+    "statusReady": "分析完成",
+    "statusIdle": "空闲",
+    "timelineTitle": "任务执行",
+    "timelineStatus": {
+      "completed": "全部步骤已完成",
+      "finalizing": "正在收尾输出",
+      "running": "推理进行中",
+      "waiting": "等待开始"
+    },
+    "taskStatus": {
+      "done": "已完成",
+      "inProgress": "进行中",
+      "queued": "排队中"
+    },
+    "mappingMetrics": "正在将解析结果映射为可视化指标...",
+    "directionYes": "YES",
+    "directionNo": "NO",
+    "compositeRisk": "综合风险",
+    "metricDetails": {
+      "prior": "先验概率用于在引入新证据前设定模型初始基线。",
+      "confidence": "置信度综合了证据数量与证据冲突惩罚。",
+      "risk": "风险 = 0.5*R_res + 0.3*R_time + 0.2*R_tail",
+      "fairBand": "公平概率区间用于条件化入场判断。",
+      "evidenceCount": "本轮分析纳入的独立证据条数。",
+      "evidenceWeight": "用于更新对数赔率的总加权信号强度。"
+    },
+    "gaugeTitle": "BAS 仪表盘详情",
+    "gaugeDetail": "该仪表盘展示了在置信度和风险惩罚后得到的判断强度。",
+    "gaugeHint": "悬停可查看细节，移开后保持紧凑展示。",
+    "posteriorCaption": "基于证据加权更新后的后验概率。",
+    "finalCall": "最终结论",
+    "netSignalLabel": "净信号：{{value}}",
+    "reasoning": {
+      "scope": {
+        "title": "解析结算定义",
+        "detail": "标准化 YES/NO 的结算口径与范围"
+      },
+      "signals": {
+        "title": "收集市场舆论",
+        "detail": "汇总近期新闻、官方信息与公开信号"
+      },
+      "weights": {
+        "title": "评估证据质量",
+        "detail": "按方向、可靠度、独立性与时效性进行加权"
+      },
+      "posterior": {
+        "title": "更新后验概率",
+        "detail": "使用带时间衰减的对数赔率进行更新"
+      },
+      "bas": {
+        "title": "校准 BAS 建议",
+        "detail": "结合判断强度、置信度与风险惩罚输出结论"
+      }
+    },
+    "recommendations": {
+      "waiting": {
+        "badge": "等待中",
+        "headline": "运行分析后生成下注建议",
+        "detail": "当 BAS 可用后，这里会给出是否可执行的建议。"
+      },
+      "highEdge": {
+        "badge": "高价值边际",
+        "headline": "可考虑 {{direction}} 方向仓位",
+        "detail": "BAS {{bas}} 表示判断强度较高；若市场隐含概率位于公平区间（{{fairLowText}} - {{fairHighText}}）之外，可能存在机会。"
+      },
+      "conditional": {
+        "badge": "条件性机会",
+        "headline": "{{direction}} 方向存在潜在价值",
+        "detail": "BAS {{bas}} 属于中等水平。建议仅在隐含概率明显低于 {{fairLowText}}（{{directionYes}}）或高于 {{fairHighText}}（{{directionNo}}）时谨慎参与。"
+      },
+      "lowConviction": {
+        "badge": "低置信度",
+        "headline": "建议先加入观察列表",
+        "detail": "BAS {{bas}} 暂不足以支持高置信度仓位。建议等待更多清晰证据后再考虑 {{direction}}。"
+      },
+      "avoid": {
+        "badge": "暂不建议",
+        "headline": "当前置信度下暂无明显边际",
+        "detail": "BAS {{bas}} 显示机会有限。更适合暂时观望，等待新数据再决定 {{direction}} 方向。"
+      }
+    }
   }
 }

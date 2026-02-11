@@ -3,19 +3,21 @@ interface LoadingProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function Loading({ text = 'Loading...', size = 'md' }: LoadingProps) {
-  const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-  };
+const spinnerSize = {
+  sm: 'h-4 w-4 border-[1.5px]',
+  md: 'h-7 w-7 border-2',
+  lg: 'h-10 w-10 border-2',
+};
 
+export function Loading({ text = 'Loading...', size = 'md' }: LoadingProps) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-8">
       <div
-        className={`${sizeClasses[size]} border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin`}
+        className={`${spinnerSize[size]} animate-spin rounded-full border-accent/25 border-t-accent`}
+        role="status"
+        aria-label={text}
       />
-      {text && <p className="text-fg-secondary text-sm">{text}</p>}
+      {text && <p className="text-sm text-fg-secondary">{text}</p>}
     </div>
   );
 }

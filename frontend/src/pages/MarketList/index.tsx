@@ -1,21 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, ArrowDown, ArrowUp, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
+import { clsx } from 'clsx';
+import type { EventSummary } from '@og-predict/shared';
+import { useTranslation } from 'react-i18next';
+import { useEvents } from '../../hooks';
 import { MarketDataRow } from '../../components/market/MarketDataRow';
 import { Loading, ErrorMessage } from '../../components/common';
-import { Search, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { clsx } from 'clsx';
 
-import type { EventSummary } from '@og-predict/shared';
-import { useEvents } from '../../hooks';
+const categories = ['All', 'Politics', 'Crypto', 'Finance', 'Geopolitics', 'Tech', 'World'];
 
-import { useTranslation } from 'react-i18next';
+type SortBy = 'volume' | 'volume24h' | 'liquidity' | 'endDate' | 'createdAt';
+
+function formatCompactCount(count: number): string {
+  return count.toLocaleString();
+}
 
 const MarketList: React.FC = () => {
   const { t } = useTranslation();
-  const [sortBy, setSortBy] = useState<'volume' | 'volume24h' | 'liquidity' | 'endDate' | 'createdAt'>('volume24h');
+  const [sortBy, setSortBy] = useState<SortBy>('volume24h');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
-  
-  // Categories based on the screenshot
-  const categories = ['All', 'Politics', 'Crypto', 'Finance', 'Geopolitics', 'Tech', 'World'];
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -23,7 +26,7 @@ const MarketList: React.FC = () => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery.trim());
-    }, 300);
+    }, 280);
 
     return () => clearTimeout(timeout);
   }, [searchQuery]);
@@ -34,20 +37,23 @@ const MarketList: React.FC = () => {
       setOrder('desc');
       return;
     }
+
     if (preset === 'new') {
       setSortBy('createdAt');
       setOrder('desc');
       return;
     }
+
     setSortBy('endDate');
     setOrder('asc');
   };
 
-  const toggleSort = (nextSortBy: typeof sortBy) => {
+  const toggleSort = (nextSortBy: SortBy) => {
     if (sortBy === nextSortBy) {
       setOrder(order === 'asc' ? 'desc' : 'asc');
       return;
     }
+
     setSortBy(nextSortBy);
     setOrder(nextSortBy === 'endDate' ? 'asc' : 'desc');
   };
@@ -58,143 +64,174 @@ const MarketList: React.FC = () => {
     tag: activeCategory === 'All' ? undefined : activeCategory.toLowerCase(),
     sortBy,
     order,
-    search: debouncedSearchQuery ? debouncedSearchQuery : undefined,
+    search: debouncedSearchQuery || undefined,
   });
 
   const events: EventSummary[] = data?.data || [];
+  const totalVolume = useMemo(
+    () => events.reduce((sum, item) => sum + (item.volume || 0), 0),
+    [events]
+  );
+
   const SortIcon = order === 'asc' ? ArrowUp : ArrowDown;
+
+  const isPresetActive = (preset: 'trending' | 'new' | 'ending') => {
+    if (preset === 'trending') return sortBy === 'volume24h';
+    if (preset === 'new') return sortBy === 'createdAt';
+    return sortBy === 'endDate';
+  };
 
   return (
     <div className="space-y-6">
-      {/* Filters Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center border-b border-border pb-4">
-        {/* Left: View Filters */}
-        <div className="flex items-center gap-6 w-full md:w-auto overflow-x-auto no-scrollbar">
-          <button 
-            onClick={() => applyPreset('trending')}
-            className={clsx(
-              "flex items-center gap-2 text-sm font-medium whitespace-nowrap pb-2 md:pb-0 border-b-2 md:border-b-0 transition-colors",
-               sortBy === 'volume24h' ? "text-fg-primary border-fg-primary" : "text-fg-secondary border-transparent hover:text-fg-primary"
-            )}
-          >
-            <ArrowUpDown className="w-4 h-4" />
-            {t('marketList.trending')}
-          </button>
-          <button 
-             onClick={() => applyPreset('new')}
-             className={clsx(
-              "flex items-center gap-2 text-sm font-medium whitespace-nowrap pb-2 md:pb-0 border-b-2 md:border-b-0 transition-colors",
-               sortBy === 'createdAt' ? "text-fg-primary border-fg-primary" : "text-fg-secondary border-transparent hover:text-fg-primary"
-            )}
-          >
-            {t('marketList.newEvents')}
-          </button>
-          <button 
-             onClick={() => applyPreset('ending')}
-             className={clsx(
-              "flex items-center gap-2 text-sm font-medium whitespace-nowrap pb-2 md:pb-0 border-b-2 md:border-b-0 transition-colors",
-               sortBy === 'endDate' ? "text-fg-primary border-fg-primary" : "text-fg-secondary border-transparent hover:text-fg-primary"
-            )}
-          >
-            {t('marketList.endingSoon')}
-          </button>
-          
-          <div className="h-4 w-px bg-border-strong hidden md:block mx-2" />
-          
-          {/* Categories */}
-          <div className="flex items-center gap-4">
-             {categories.map(cat => (
-                <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={clsx(
-                        "text-sm transition-colors whitespace-nowrap",
-                        activeCategory === cat ? "text-fg-primary font-medium" : "text-fg-secondary hover:text-fg-primary"
-                    )}
-                >
-                    {cat}
-                </button>
-             ))}
+      <section className="app-panel px-5 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.19em] text-fg-muted">Prediction Explorer</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-fg-primary sm:text-[2rem]">Find your edge across live markets</h1>
+            <p className="max-w-2xl text-sm text-fg-secondary">
+              Curated markets with transparent volume, liquidity, and AI-assisted reasoning.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-3">
+            <div className="app-stat min-w-[120px] border-accent/25 bg-accent-soft/60 p-3 sm:p-4">
+              <div className="text-[11px] uppercase tracking-wide text-accent/85">Markets</div>
+              <div className="mt-1 text-lg font-semibold text-fg-primary">{formatCompactCount(events.length)}</div>
+            </div>
+            <div className="app-stat min-w-[120px] border-violet-200/75 bg-violet-50/70 p-3 sm:p-4 dark:border-violet-500/35 dark:bg-violet-500/10">
+              <div className="text-[11px] uppercase tracking-wide text-violet-700 dark:text-violet-200">Total Volume</div>
+              <div className="mt-1 text-lg font-semibold text-fg-primary dark:text-violet-100">${(totalVolume / 1e6).toFixed(2)}M</div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Right: Search */}
-        <div className="w-full md:w-auto relative">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-secondary" />
-           <input 
-              type="text"
-              placeholder={t('common.search')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full md:w-64 bg-surface border border-border rounded-lg py-2 pl-9 pr-4 text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-border-strong transition-colors"
-           />
+      <section className="app-panel p-4 sm:p-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="scrollbar-hide flex items-center gap-1 overflow-x-auto rounded-full border border-border bg-elevated/45 p-1">
+              <button
+                onClick={() => applyPreset('trending')}
+                className={clsx(
+                  'rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap transition',
+                  isPresetActive('trending')
+                    ? 'bg-accent text-white font-semibold shadow-sm shadow-accent/25'
+                    : 'text-fg-muted font-medium hover:text-fg-secondary'
+                )}
+              >
+                {t('marketList.trending')}
+              </button>
+              <button
+                onClick={() => applyPreset('new')}
+                className={clsx(
+                  'rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap transition',
+                  isPresetActive('new')
+                    ? 'bg-accent text-white font-semibold shadow-sm shadow-accent/25'
+                    : 'text-fg-muted font-medium hover:text-fg-secondary'
+                )}
+              >
+                {t('marketList.newEvents')}
+              </button>
+              <button
+                onClick={() => applyPreset('ending')}
+                className={clsx(
+                  'rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap transition',
+                  isPresetActive('ending')
+                    ? 'bg-accent text-white font-semibold shadow-sm shadow-accent/25'
+                    : 'text-fg-muted font-medium hover:text-fg-secondary'
+                )}
+              >
+                {t('marketList.endingSoon')}
+              </button>
+            </div>
+
+            <div className="relative w-full xl:w-auto">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted" />
+              <input
+                type="text"
+                placeholder={t('common.search')}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="app-input h-10 w-full pl-9 xl:w-72"
+              />
+            </div>
+          </div>
+
+          <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-secondary">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Filters
+            </span>
+            {categories.map((category) => {
+              const isActive = activeCategory === category;
+              return (
+                <button
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
+                  className={clsx(
+                    'rounded-full border px-3 py-1.5 text-xs whitespace-nowrap transition',
+                    isActive
+                      ? 'border-accent/35 bg-accent-soft text-accent font-semibold'
+                      : 'border-border bg-surface text-fg-muted font-medium hover:text-fg-secondary'
+                  )}
+                >
+                  {category}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Main Content */}
-      <div className="min-h-[500px]">
-        {/* Table Header (Hidden on Mobile) */}
-        <div className="hidden md:grid grid-cols-12 gap-4 px-4 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">
-           <div className="col-span-6">{t('marketList.event')}</div>
-           <button
-             type="button"
-             onClick={() => toggleSort('volume24h')}
-             className="col-span-2 flex items-center justify-end gap-1 hover:text-fg-secondary transition-colors"
-           >
-             <span>{t('marketList.vol24h')}</span>
-             {sortBy === 'volume24h' ? (
-               <SortIcon className="w-3 h-3 text-fg-secondary" />
-             ) : (
-               <ArrowUpDown className="w-3 h-3 text-fg-muted" />
-             )}
-           </button>
-           <button
-             type="button"
-             onClick={() => toggleSort('volume')}
-             className="col-span-2 flex items-center justify-end gap-1 hover:text-fg-secondary transition-colors"
-           >
-             <span>{t('marketList.totalVol')}</span>
-             {sortBy === 'volume' ? (
-               <SortIcon className="w-3 h-3 text-fg-secondary" />
-             ) : (
-               <ArrowUpDown className="w-3 h-3 text-fg-muted" />
-             )}
-           </button>
-           <button
-             type="button"
-             onClick={() => toggleSort('liquidity')}
-             className="col-span-2 flex items-center justify-end gap-1 hover:text-fg-secondary transition-colors"
-           >
-             <span>{t('marketList.liquidity')}</span>
-             {sortBy === 'liquidity' ? (
-               <SortIcon className="w-3 h-3 text-fg-secondary" />
-             ) : (
-               <ArrowUpDown className="w-3 h-3 text-fg-muted" />
-             )}
-           </button>
+      <section className="space-y-3">
+        <div className="hidden grid-cols-12 items-center gap-4 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-secondary/90 md:grid">
+          <div className="col-span-6">{t('marketList.event')}</div>
+          <button
+            type="button"
+            onClick={() => toggleSort('volume24h')}
+            className="col-span-2 inline-flex items-center justify-end gap-1 transition hover:text-fg-primary"
+          >
+            <span>{t('marketList.vol24h')}</span>
+            {sortBy === 'volume24h' ? <SortIcon className="h-3 w-3 text-fg-primary" /> : <ArrowUpDown className="h-3 w-3 text-fg-muted" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleSort('volume')}
+            className="col-span-2 inline-flex items-center justify-end gap-1 transition hover:text-fg-primary"
+          >
+            <span>{t('marketList.totalVol')}</span>
+            {sortBy === 'volume' ? <SortIcon className="h-3 w-3 text-fg-primary" /> : <ArrowUpDown className="h-3 w-3 text-fg-muted" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleSort('liquidity')}
+            className="col-span-2 inline-flex items-center justify-end gap-1 transition hover:text-fg-primary"
+          >
+            <span>{t('marketList.liquidity')}</span>
+            {sortBy === 'liquidity' ? <SortIcon className="h-3 w-3 text-fg-primary" /> : <ArrowUpDown className="h-3 w-3 text-fg-muted" />}
+          </button>
         </div>
 
         {isLoading ? (
-           <Loading size="lg" text={t('common.loading')} />
+          <Loading size="lg" text={t('common.loading')} />
         ) : error ? (
-           <ErrorMessage message={error.message || t('common.error')} onRetry={() => refetch()} />
+          <ErrorMessage message={error.message || t('common.error')} onRetry={() => refetch()} />
         ) : events.length === 0 ? (
-           // Placeholder for when no events are loaded yet
-           <div className="text-center py-20">
-              <div className="w-16 h-16 bg-elevated rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-fg-muted" />
-              </div>
-              <h3 className="text-fg-primary font-medium mb-2">{t('marketList.noMarkets')}</h3>
-              <p className="text-fg-muted text-sm">{t('marketList.noMarketsDesc')}</p>
-           </div>
+          <div className="app-muted-panel px-5 py-14 text-center">
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-surface text-fg-muted">
+              <Search className="h-6 w-6" />
+            </div>
+            <h3 className="text-base font-semibold text-fg-primary">{t('marketList.noMarkets')}</h3>
+            <p className="mt-2 text-sm text-fg-muted">{t('marketList.noMarketsDesc')}</p>
+          </div>
         ) : (
-           <div className="space-y-1">
-              {events.map((event: EventSummary) => (
-                  <MarketDataRow key={event.eventId} event={event} />
-              ))}
-           </div>
+          <div className="space-y-2.5">
+            {events.map((event) => (
+              <MarketDataRow key={event.eventId} event={event} />
+            ))}
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };
