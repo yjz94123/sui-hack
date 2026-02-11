@@ -5,7 +5,10 @@
       "Bash(sui:*)",
       "Bash(./scripts/setup-sui.sh:*)",
       "Bash(printf:*)",
-      "Bash(brew upgrade:*)"
+      "Bash(brew upgrade:*)",
+      "Bash(npm run build:*)",
+      "Bash(frontend/.env.example << 'EOF'\n# API Configuration\n# 后端 API 地址（可选，默认为 /api/v1）\nVITE_API_BASE_URL=https://your-backend-api.com/api/v1\n\n# Sui Contract Configuration\n# Sui 合约包 ID\nVITE_SUI_PACKAGE_ID=0x0\n\n# USDC MintController 共享对象 ID\nVITE_SUI_USDC_MINT_CONTROLLER=0x0\n\n# TradingHub 共享对象 ID\nVITE_SUI_TRADING_HUB=0x0\n\n# AdminCap 对象 ID（仅后端使用，前端可选）\nVITE_SUI_ADMIN_CAP=0x0\nEOF)",
+      "Bash(vercel whoami:*)"
     ]
   }
 }

@@ -16,23 +16,28 @@ export function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-fg-primary">Prediction Markets</h1>
-        <p className="text-fg-secondary mt-1">
-          Aggregated from Polymarket. Powered by 0G Network.
+      <div className="mb-10">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-10 w-1 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            Prediction Markets
+          </h1>
+        </div>
+        <p className="text-fg-secondary ml-4 text-base">
+          Aggregated from Polymarket. Powered by <span className="font-semibold text-blue-600 dark:text-blue-400">Sui Network</span>.
         </p>
       </div>
 
       {/* Tag filter */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
         {TAGS.map((tag) => (
           <button
             key={tag}
             onClick={() => setSelectedTag(tag)}
-            className={`px-4 py-1.5 text-sm rounded-full whitespace-nowrap transition ${
+            className={`px-5 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all shadow-sm ${
               selectedTag === tag
-                ? 'bg-primary-600 text-white'
-                : 'bg-elevated text-fg-secondary hover:text-fg-primary'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-blue-200 dark:shadow-blue-900/50 scale-105'
+                : 'bg-surface border border-border text-fg-secondary hover:text-fg-primary hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md'
             }`}
           >
             {tag}
