@@ -15,3 +15,9 @@ Thumbs.db
 .idea/
 .vscode/
 *.sw?
+
+# Playwright MCP screenshots
+.playwright-mcp/
+
+# Claude settings
+.claude/settings.local.json
