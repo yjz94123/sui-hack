@@ -17,7 +17,7 @@
   "dependencies": {
     "@0glabs/0g-serving-broker": "^0.1.0",
     "@0glabs/0g-ts-sdk": "^0.1.0",
-    "@og-predict/shared": "*",
+    "@og-predict/shared": "file:../packages/shared",
     "@prisma/client": "^6.0.0",
     "axios": "^1.7.0",
     "cheerio": "^1.0.0",

@@ -101,6 +101,8 @@ export class ProxyOrderService {
 
       // 5. 调用合约 openPosition
       const outcomeNum = outcome === 'YES' ? OUTCOME_YES : OUTCOME_NO;
+      // NOTE: 已迁移到 Sui，此调用会抛出 "migrated to Sui" 错误
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { receipt, positionId } = await tradingHubClient.openPosition(
         userAddress,
         onchainMarketId,
@@ -108,7 +110,7 @@ export class ProxyOrderService {
         usdcAmountRaw,
         tokenAmount,
         priceBps,
-      );
+      ) as any;
 
       // 6. 记录到 DB
       const posId = positionId !== null ? Number(positionId) : 0;
@@ -203,12 +205,13 @@ export class ProxyOrderService {
       const currentPriceBps = Math.round(currentPrice * 10000);
       const returnUsdc = (pos.tokenAmount * BigInt(currentPriceBps)) / 10000n;
 
-      // 5. 调用合约 closePosition
+      // NOTE: 已迁移到 Sui，此调用会抛出 "migrated to Sui" 错误
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const receipt = await tradingHubClient.closePosition(
         positionId,
         returnUsdc,
         currentPriceBps,
-      );
+      ) as any;
 
       // 6. 记录到 DB
       await prisma.tradeRecord.create({

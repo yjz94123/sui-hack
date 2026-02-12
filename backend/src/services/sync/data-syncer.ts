@@ -86,71 +86,75 @@ export class DataSyncer {
     const syncedAt = new Date();
     const now = new Date();
 
-    for (const event of events) {
-      const tagSlugs = (event.tags || []).map((t) => t.slug);
-      const tags = (event.tags || []).map((t) => ({ slug: t.slug, label: t.label }));
+    // Wrap entire batch in a transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      for (const event of events) {
+        const tagSlugs = (event.tags || []).map((t) => t.slug);
+        const tags = (event.tags || []).map((t) => ({ slug: t.slug, label: t.label }));
 
-      // 如果 endDate 已过期，强制标记为非活跃
-      const endDate = event.endDate ? new Date(event.endDate) : null;
-      const isExpired = endDate !== null && endDate < now;
-      const isActive = isExpired ? false : !!event.active;
+        // 如果 endDate 已过期，强制标记为非活跃
+        const endDate = event.endDate ? new Date(event.endDate) : null;
+        const isExpired = endDate !== null && endDate < now;
+        const isActive = isExpired ? false : !!event.active;
 
-      await prisma.event.upsert({
-        where: { id: event.id },
-        create: {
-          id: event.id,
-          slug: event.slug,
-          title: event.title,
-          description: event.description ?? null,
-          resolutionSource: event.resolutionSource ?? null,
-          imageUrl: event.image ?? null,
-          iconUrl: event.icon ?? null,
-          startDate: event.startDate ? new Date(event.startDate) : null,
-          endDate,
-          active: isActive,
-          closed: isExpired ? true : !!event.closed,
-          featured: !!event.featured,
-          volume: Number(event.volume ?? 0),
-          volume24h: Number((event as any).volume24hr ?? (event as any).volume24h ?? 0),
-          liquidity: Number(event.liquidity ?? 0),
-          openInterest: Number((event as any).openInterest ?? 0),
-          tagSlugs,
-          tags,
-          rawData: event as unknown as object,
-          syncedAt,
-        },
-        update: {
-          slug: event.slug,
-          title: event.title,
-          description: event.description ?? null,
-          resolutionSource: event.resolutionSource ?? null,
-          imageUrl: event.image ?? null,
-          iconUrl: event.icon ?? null,
-          startDate: event.startDate ? new Date(event.startDate) : null,
-          endDate,
-          active: isActive,
-          closed: isExpired ? true : !!event.closed,
-          featured: !!event.featured,
-          volume: Number(event.volume ?? 0),
-          volume24h: Number((event as any).volume24hr ?? (event as any).volume24h ?? 0),
-          liquidity: Number(event.liquidity ?? 0),
-          openInterest: Number((event as any).openInterest ?? 0),
-          tagSlugs,
-          tags,
-          rawData: event as unknown as object,
-          syncedAt,
-        },
-      });
+        await tx.event.upsert({
+          where: { id: event.id },
+          create: {
+            id: event.id,
+            slug: event.slug,
+            title: event.title,
+            description: event.description ?? null,
+            resolutionSource: event.resolutionSource ?? null,
+            imageUrl: event.image ?? null,
+            iconUrl: event.icon ?? null,
+            startDate: event.startDate ? new Date(event.startDate) : null,
+            endDate,
+            active: isActive,
+            closed: isExpired ? true : !!event.closed,
+            featured: !!event.featured,
+            volume: Number(event.volume ?? 0),
+            volume24h: Number((event as any).volume24hr ?? (event as any).volume24h ?? 0),
+            liquidity: Number(event.liquidity ?? 0),
+            openInterest: Number((event as any).openInterest ?? 0),
+            tagSlugs,
+            tags,
+            rawData: event as unknown as object,
+            syncedAt,
+          },
+          update: {
+            slug: event.slug,
+            title: event.title,
+            description: event.description ?? null,
+            resolutionSource: event.resolutionSource ?? null,
+            imageUrl: event.image ?? null,
+            iconUrl: event.icon ?? null,
+            startDate: event.startDate ? new Date(event.startDate) : null,
+            endDate,
+            active: isActive,
+            closed: isExpired ? true : !!event.closed,
+            featured: !!event.featured,
+            volume: Number(event.volume ?? 0),
+            volume24h: Number((event as any).volume24hr ?? (event as any).volume24h ?? 0),
+            liquidity: Number(event.liquidity ?? 0),
+            openInterest: Number((event as any).openInterest ?? 0),
+            tagSlugs,
+            tags,
+            rawData: event as unknown as object,
+            syncedAt,
+          },
+        });
 
-      if (Array.isArray(event.markets)) {
-        for (const market of event.markets) {
-          await this.upsertMarket(event.id, market, syncedAt);
+        if (Array.isArray(event.markets)) {
+          for (const market of event.markets) {
+            await this.upsertMarketTx(tx, event.id, market, syncedAt);
+          }
         }
       }
-    }
+    }, { timeout: 30000 });
   }
 
-  private async upsertMarket(eventId: string, market: GammaMarket, syncedAt: Date): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async upsertMarketTx(tx: any, eventId: string, market: GammaMarket, syncedAt: Date): Promise<void> {
     const outcomes = this.parseStringArray(market.outcomes, ['Yes', 'No']);
     const outcomePrices = this.parseStringArray(market.outcomePrices, ['0.5', '0.5']);
     const clobTokenIds = this.parseStringArray(market.clobTokenIds, []);
@@ -164,7 +168,7 @@ export class DataSyncer {
     const mktActive = mktExpired ? false : !!market.active;
     const mktClosed = mktExpired ? true : !!market.closed;
 
-    await prisma.market.upsert({
+    await tx.market.upsert({
       where: { id: market.id },
       create: {
         id: market.id,

@@ -13,9 +13,9 @@ export {
 // TradingHub hooks
 export {
   useOrder,
+  usePlaceOrder,
   useUserOrders,
   useMarketOrders,
-  useUserMarketOrders,
   useTotalOrders,
   useWatchOrderPlaced,
   useWatchOrderSettled,

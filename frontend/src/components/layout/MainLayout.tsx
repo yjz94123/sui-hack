@@ -48,12 +48,12 @@ const MainLayout: React.FC = () => {
           <div className="flex min-h-[6rem] items-center justify-between gap-4 py-3">
             <div className="flex min-w-0 items-center gap-4 sm:gap-8">
               <Link to="/" className="group inline-flex min-w-0 items-center gap-3.5">
-                <div className="grid h-10 w-10 place-items-center rounded-xl border border-accent/25 bg-accent text-sm font-semibold tracking-wide text-white shadow-md shadow-accent/30 transition group-hover:scale-[1.02]">
-                  SP
+                <div className="grid h-10 w-10 place-items-center rounded-xl border border-accent/25 bg-accent text-[11px] font-bold tracking-wide text-white shadow-md shadow-accent/30 transition group-hover:scale-[1.02]">
+                  BAS
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-fg-muted">Prediction Market</p>
-                  <p className="truncate text-[1.95rem] font-semibold leading-none tracking-[-0.012em] text-fg-primary">Sui Predict</p>
+                  <p className="truncate text-[1.95rem] font-semibold leading-none tracking-[-0.012em] text-fg-primary">BAS Predict</p>
                 </div>
               </Link>
 
@@ -153,7 +153,7 @@ const MainLayout: React.FC = () => {
       <footer className="relative z-10 mt-12 border-t border-border/70 bg-surface/55">
         <div className="mx-auto flex w-full max-w-[1240px] flex-col items-start justify-between gap-4 px-4 py-6 text-xs text-fg-muted sm:flex-row sm:items-center sm:px-6 lg:px-8">
           <div>
-            <p className="font-medium text-fg-secondary">© 2026 Sui Predict</p>
+            <p className="font-medium text-fg-secondary">© 2026 BAS Predict</p>
             <p className="mt-1">{isSimMode ? 'Demo mode with local simulated market + AI data' : t('common.poweredBy')}</p>
           </div>
 

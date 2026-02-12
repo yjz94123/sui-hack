@@ -18,6 +18,7 @@ import { streamAnalysis, type AnalysisStreamMessage } from '../../api/markets';
 interface AnalysisPanelProps {
   eventId: string;
   marketId: string;
+  onResult?: (result: unknown) => void;
 }
 
 interface Recommendation {
@@ -200,7 +201,7 @@ function buildRecommendation(
   };
 }
 
-export function AnalysisPanel({ eventId, marketId }: AnalysisPanelProps) {
+export function AnalysisPanel({ eventId, marketId, onResult }: AnalysisPanelProps) {
   const { t } = useTranslation();
   const [isRunning, setIsRunning] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
@@ -273,6 +274,7 @@ export function AnalysisPanel({ eventId, marketId }: AnalysisPanelProps) {
       setShowResult(false);
       abortRef.current = null;
       resetRevealTimer();
+      if (parsed) onResult?.(parsed);
       revealTimerRef.current = setTimeout(() => {
         setIsSettling(false);
         setShowResult(true);

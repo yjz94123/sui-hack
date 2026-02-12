@@ -1,17 +1,24 @@
 import { useMemo, useState } from 'react';
 import { clsx } from 'clsx';
 import { useCurrentAccount } from '@mysten/dapp-kit';
-import { placeBuyOrder } from '../../api';
-import { MAX_MINT_AMOUNT, useMintUSDC, useUSDCBalance } from '../../contracts';
+import { MAX_MINT_AMOUNT, useMintUSDC, usePlaceOrder, useUSDCBalance } from '../../contracts';
 import { parseUSDC } from '../../contracts/utils';
+
+interface BasResult {
+  bas: number;
+  posterior: number;
+  fairLow: number;
+  fairHigh: number;
+}
 
 interface TradePanelProps {
   marketId: string;
   yesPrice: number;
   noPrice: number;
+  basResult?: BasResult | null;
 }
 
-export function TradePanel({ marketId, yesPrice, noPrice }: TradePanelProps) {
+export function TradePanel({ marketId, yesPrice, noPrice, basResult }: TradePanelProps) {
   const account = useCurrentAccount();
   const address = account?.address;
   const isConnected = Boolean(account);
@@ -21,13 +28,13 @@ export function TradePanel({ marketId, yesPrice, noPrice }: TradePanelProps) {
   const [tradeError, setTradeError] = useState<string | null>(null);
   const [tradeSuccess, setTradeSuccess] = useState<string | null>(null);
   const [mintError, setMintError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: balanceData, refetch: refetchBalance } = useUSDCBalance();
   const balance = balanceData?.balance ?? '0';
   const balanceRaw = balanceData?.balanceRaw ?? 0n;
 
   const { mint, isPending: isMinting } = useMintUSDC();
+  const { placeOrder, isPending: isPlacing } = usePlaceOrder();
 
   const numericAmount = Number(amount);
   const currentPrice = side === 'yes' ? yesPrice : noPrice;
@@ -69,25 +76,22 @@ export function TradePanel({ marketId, yesPrice, noPrice }: TradePanelProps) {
 
     setTradeError(null);
     setTradeSuccess(null);
-    setIsSubmitting(true);
 
     try {
-      const result = await placeBuyOrder({
-        userAddress: address,
+      const priceBps = Math.round(currentPrice * 10000);
+      const result = await placeOrder({
         marketId,
         outcome: side === 'yes' ? 'YES' : 'NO',
-        usdcAmount: numericAmount,
+        amount: amount,
+        priceBps,
       });
 
-      const txHash = result.data?.txHash;
-      setTradeSuccess(txHash ? `Order submitted: ${txHash}` : 'Order submitted');
+      setTradeSuccess(`Order submitted: ${result.digest}`);
       setAmount('');
       await refetchBalance();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Trade failed';
       setTradeError(message);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -127,6 +131,33 @@ export function TradePanel({ marketId, yesPrice, noPrice }: TradePanelProps) {
             No {(noPrice * 100).toFixed(1)}¢
           </button>
         </div>
+
+        {basResult && basResult.bas >= 40 && (() => {
+          const impliedYes = yesPrice;
+          const suggestYes = impliedYes < basResult.fairLow;
+          const suggestNo = impliedYes > basResult.fairHigh;
+          if (!suggestYes && !suggestNo) return null;
+
+          const direction = suggestYes ? 'YES' : 'NO';
+          const isHighEdge = basResult.bas >= 70;
+          const borderClass = isHighEdge
+            ? 'border-success/40 bg-success/10'
+            : 'border-accent/35 bg-accent-soft/70';
+          const textClass = isHighEdge ? 'text-success' : 'text-accent';
+
+          return (
+            <div className={clsx('rounded-xl border px-3 py-2.5', borderClass)}>
+              <div className="flex items-center justify-between">
+                <span className={clsx('text-xs font-semibold', textClass)}>
+                  BAS {basResult.bas.toFixed(0)} — AI suggests {direction}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-fg-secondary">
+                Fair range: {(basResult.fairLow * 100).toFixed(1)}% – {(basResult.fairHigh * 100).toFixed(1)}% | Market: {(impliedYes * 100).toFixed(1)}%
+              </p>
+            </div>
+          );
+        })()}
 
         <div>
           <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-fg-muted">Amount (USDC)</label>
@@ -186,10 +217,10 @@ export function TradePanel({ marketId, yesPrice, noPrice }: TradePanelProps) {
           <button
             type="button"
             onClick={handleTrade}
-            disabled={!amount || Number(amount) <= 0 || !hasBalance || isSubmitting}
+            disabled={!amount || Number(amount) <= 0 || !hasBalance || isPlacing}
             className="app-btn-primary h-11 w-full text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {isSubmitting ? 'Submitting...' : `Buy ${side === 'yes' ? 'Yes' : 'No'}`}
+            {isPlacing ? 'Submitting...' : `Buy ${side === 'yes' ? 'Yes' : 'No'}`}
           </button>
         ) : (
           <div className="app-muted-panel px-4 py-3 text-center text-sm text-fg-muted">

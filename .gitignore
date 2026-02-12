@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+backend/dist/
+frontend/dist/
+
+# Environment files (may contain secrets)
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.sw?

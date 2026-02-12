@@ -85,8 +85,8 @@ function parsePricePoints(data: unknown): Array<{ timestamp: number; price: numb
     }
     if (data.every((x) => typeof x === 'object' && x)) {
       return (data as any[]).map((x) => ({
-        timestamp: Number((x as any).timestamp),
-        price: Number((x as any).price),
+        timestamp: Number((x as any).timestamp ?? (x as any).t),
+        price: Number((x as any).price ?? (x as any).p),
       })).filter((p) => Number.isFinite(p.timestamp) && Number.isFinite(p.price));
     }
   }

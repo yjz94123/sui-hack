@@ -90,10 +90,12 @@ module prediction_market::usdc_coin {
         transfer::public_transfer(coin, sender);
     }
 
-    /// 无限制铸造（用于测试）
+    /// 无限制铸造（仅管理员，用于测试环境注入流动性）
+    /// - admin_cap: 管理员权限凭证（来自 trading_hub 模块）
     /// - amount: 铸造数量
     /// - recipient: 接收地址
     public entry fun mint_unlimited(
+        _admin_cap: &prediction_market::trading_hub::AdminCap,
         controller: &mut MintController,
         amount: u64,
         recipient: address,

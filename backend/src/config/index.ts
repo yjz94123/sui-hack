@@ -35,6 +35,11 @@ export const config = {
     },
   },
 
+  sui: {
+    address: process.env.SUI_ADDRESS || '',
+    privateKey: process.env.SUI_PRIVATE_KEY || '',
+  },
+
   contracts: {
     demoUsdcAddress: process.env.DEMO_USDC_ADDRESS!,
     tradingHubAddress: process.env.TRADING_HUB_ADDRESS!,

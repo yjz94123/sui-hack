@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BarChart3, ChevronLeft, ChevronRight, Clock, Info, Layers3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +58,37 @@ export function MarketDetailPage() {
 
   const { data: orderBookData, isLoading: orderBookLoading } = useOrderBook(event?.eventId, market?.marketId);
   const { data: priceData, isLoading: priceLoading } = usePriceHistory(event?.eventId, market?.marketId);
+
+  // BAS analysis result state (lifted from AnalysisPanel)
+  const [basResult, setBasResult] = useState<{
+    bas: number;
+    posterior: number;
+    fairLow: number;
+    fairHigh: number;
+  } | null>(null);
+
+  // Reset BAS when market changes
+  useEffect(() => {
+    setBasResult(null);
+  }, [selectedMarketId]);
+
+  const handleAnalysisResult = useCallback((result: unknown) => {
+    if (!result || typeof result !== 'object') return;
+    const r = result as Record<string, unknown>;
+    const bas = typeof r.bet_attractiveness_score === 'number' ? r.bet_attractiveness_score : undefined;
+    const posterior = typeof r.posterior_probability === 'number' ? r.posterior_probability : undefined;
+    const band = r.fair_probability_band;
+    const fairLow = band && typeof band === 'object' ? (band as any).low : undefined;
+    const fairHigh = band && typeof band === 'object' ? (band as any).high : undefined;
+    if (typeof bas === 'number' && typeof posterior === 'number') {
+      setBasResult({
+        bas,
+        posterior,
+        fairLow: typeof fairLow === 'number' ? fairLow : 0,
+        fairHigh: typeof fairHigh === 'number' ? fairHigh : 1,
+      });
+    }
+  }, []);
 
   if (isLoading) return <Loading text={t('common.loading')} />;
   if (error) return <ErrorMessage message={error.message || t('common.error')} />;
@@ -233,13 +264,13 @@ export function MarketDetailPage() {
         <aside className="space-y-5 lg:col-span-4">
           <div className="space-y-5 lg:sticky lg:top-24">
             {market ? (
-              <TradePanel marketId={market.marketId} yesPrice={yesPrice} noPrice={noPrice} />
+              <TradePanel marketId={market.marketId} yesPrice={yesPrice} noPrice={noPrice} basResult={basResult} />
             ) : (
               <div className="app-panel px-5 py-8 text-center text-sm text-fg-muted">{t('marketDetail.selectMarket')}</div>
             )}
 
             {market ? (
-              <AnalysisPanel eventId={event.eventId} marketId={market.marketId} />
+              <AnalysisPanel eventId={event.eventId} marketId={market.marketId} onResult={handleAnalysisResult} />
             ) : (
               <div className="app-panel px-5 py-8 text-center text-sm text-fg-muted">
                 {t('marketDetail.selectMarketToAnalyze')}

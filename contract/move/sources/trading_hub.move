@@ -1,5 +1,5 @@
 /// 预测市场订单管理模块
-/// 仅管理员可下单和结算
+/// 用户可自主下单，仅管理员可结算
 module prediction_market::trading_hub {
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
@@ -14,10 +14,14 @@ module prediction_market::trading_hub {
     const EOrderAlreadySettled: u64 = 4;
     const EInsufficientBalance: u64 = 5;
     const EUnauthorized: u64 = 6;
+    const EInvalidPrice: u64 = 7;
 
     /// 结果常量
     const OUTCOME_NO: u8 = 0;
     const OUTCOME_YES: u8 = 1;
+
+    /// 价格精度基数 (basis points)
+    const BPS_BASE: u64 = 10000;
 
     /// 管理员权限凭证
     public struct AdminCap has key, store {
@@ -31,6 +35,8 @@ module prediction_market::trading_hub {
         market_id: vector<u8>,
         outcome: u8,
         amount: u64,
+        /// 入场价格 (basis points, 例: 6500 = 65%)
+        price_bps: u64,
         timestamp: u64,
         settled: bool,
     }
@@ -57,6 +63,7 @@ module prediction_market::trading_hub {
         market_id: vector<u8>,
         outcome: u8,
         amount: u64,
+        price_bps: u64,
     }
 
     /// 事件：订单结算
@@ -95,23 +102,20 @@ module prediction_market::trading_hub {
         transfer::share_object(hub);
     }
 
-    /// 创建订单（仅管理员）
-    /// - user: 用户地址
-    /// - market_id: 市场 ID
-    /// - outcome: 选择 (0=NO, 1=YES)
-    /// - payment: 用户支付的 USDC
-    public entry fun place_order(
-        _admin_cap: &AdminCap,
+    /// 内部: 创建订单并更新索引
+    fun create_order(
         hub: &mut TradingHub,
         user: address,
         market_id: vector<u8>,
         outcome: u8,
         payment: Coin<USDC_COIN>,
+        price_bps: u64,
         ctx: &mut TxContext
     ) {
         let amount = coin::value(&payment);
         assert!(amount > 0, EInvalidAmount);
         assert!(outcome <= OUTCOME_YES, EInvalidOutcome);
+        assert!(price_bps > 0 && price_bps < BPS_BASE, EInvalidPrice);
 
         // 将 USDC 存入资金池
         let balance_to_add = coin::into_balance(payment);
@@ -127,6 +131,7 @@ module prediction_market::trading_hub {
             market_id: market_id,
             outcome,
             amount,
+            price_bps,
             timestamp: tx_context::epoch_timestamp_ms(ctx),
             settled: false,
         };
@@ -154,12 +159,41 @@ module prediction_market::trading_hub {
             market_id,
             outcome,
             amount,
+            price_bps,
         });
     }
 
+    /// 创建订单（仅管理员）
+    public entry fun place_order(
+        _admin_cap: &AdminCap,
+        hub: &mut TradingHub,
+        user: address,
+        market_id: vector<u8>,
+        outcome: u8,
+        payment: Coin<USDC_COIN>,
+        price_bps: u64,
+        ctx: &mut TxContext
+    ) {
+        create_order(hub, user, market_id, outcome, payment, price_bps, ctx);
+    }
+
+    /// 用户自主下单（无需管理员）
+    /// - price_bps: 入场价格 (basis points), 前端传入当前市场价格
+    public entry fun public_place_order(
+        hub: &mut TradingHub,
+        market_id: vector<u8>,
+        outcome: u8,
+        payment: Coin<USDC_COIN>,
+        price_bps: u64,
+        ctx: &mut TxContext
+    ) {
+        let sender = tx_context::sender(ctx);
+        create_order(hub, sender, market_id, outcome, payment, price_bps, ctx);
+    }
+
     /// 结算单个订单（仅管理员）
-    /// - order_id: 订单 ID
-    /// - won: 是否获胜
+    /// 赔付公式: payout = amount * 10000 / price_bps
+    /// 例: 100 USDC @ 40% → payout = 100 * 10000 / 4000 = 250 USDC
     public entry fun settle_order(
         _admin_cap: &AdminCap,
         hub: &mut TradingHub,
@@ -176,16 +210,15 @@ module prediction_market::trading_hub {
 
         let mut payout = 0u64;
         if (won) {
-            payout = order.amount * 2;
+            // payout = amount * BPS_BASE / price_bps
+            payout = order.amount * BPS_BASE / order.price_bps;
             assert!(balance::value(&hub.balance) >= payout, EInsufficientBalance);
 
-            // 从资金池提取并发送给用户
             let payout_balance = balance::split(&mut hub.balance, payout);
             let payout_coin = coin::from_balance(payout_balance, ctx);
             transfer::public_transfer(payout_coin, order.user);
         };
 
-        // 触发事件
         event::emit(OrderSettled {
             order_id,
             user: order.user,
@@ -196,8 +229,6 @@ module prediction_market::trading_hub {
     }
 
     /// 批量结算市场的所有订单（仅管理员）
-    /// - market_id: 市场 ID
-    /// - winning_outcome: 获胜结果 (0=NO, 1=YES)
     public entry fun settle_market(
         _admin_cap: &AdminCap,
         hub: &mut TradingHub,
@@ -208,7 +239,6 @@ module prediction_market::trading_hub {
         assert!(winning_outcome <= OUTCOME_YES, EInvalidOutcome);
 
         if (!table::contains(&hub.market_orders, market_id)) {
-            // 市场没有订单，直接返回
             event::emit(MarketSettled {
                 market_id,
                 winning_outcome,
@@ -231,7 +261,7 @@ module prediction_market::trading_hub {
 
                 let mut payout = 0u64;
                 if (won) {
-                    payout = order.amount * 2;
+                    payout = order.amount * BPS_BASE / order.price_bps;
                     assert!(balance::value(&hub.balance) >= payout, EInsufficientBalance);
 
                     let payout_balance = balance::split(&mut hub.balance, payout);
@@ -326,6 +356,7 @@ module prediction_market::trading_hub {
     public fun market_id(order: &Order): vector<u8> { order.market_id }
     public fun outcome(order: &Order): u8 { order.outcome }
     public fun amount(order: &Order): u64 { order.amount }
+    public fun price_bps(order: &Order): u64 { order.price_bps }
     public fun timestamp(order: &Order): u64 { order.timestamp }
     public fun settled(order: &Order): bool { order.settled }
 
