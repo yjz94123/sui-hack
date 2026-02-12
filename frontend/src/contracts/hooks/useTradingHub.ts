@@ -4,6 +4,8 @@ import { CONTRACTS, MODULES, USDC_DECIMALS, OUTCOME, USDC_COIN_TYPE } from '../c
 import { Transaction } from '@mysten/sui/transactions';
 import { useEffect, useRef, useState } from 'react';
 import { parseUSDC } from '../utils';
+import { defaultChain } from '../../config/sui';
+import { selectPlaceOrderEntrypoint } from '../place-order-entrypoint';
 
 // ============ Browser-compatible helpers (no Buffer) ============
 
@@ -127,6 +129,55 @@ function marketIdToBytes(marketId: string): number[] {
   return Array.from(new TextEncoder().encode(marketId));
 }
 
+async function getFunctionParamCount(
+  client: ReturnType<typeof useSuiClient>,
+  fnName: 'public_place_order' | 'place_order_user' | 'place_order'
+): Promise<number | null> {
+  try {
+    const fn = await client.getNormalizedMoveFunction({
+      package: CONTRACTS.PACKAGE_ID,
+      module: MODULES.TRADING_HUB,
+      function: fnName,
+    });
+    return fn.parameters.length;
+  } catch {
+    return null;
+  }
+}
+
+async function resolvePlaceOrderEntrypoint(client: ReturnType<typeof useSuiClient>) {
+  const [publicCount, userCount, adminCount] = await Promise.all([
+    getFunctionParamCount(client, 'public_place_order'),
+    getFunctionParamCount(client, 'place_order_user'),
+    getFunctionParamCount(client, 'place_order'),
+  ]);
+
+  return selectPlaceOrderEntrypoint({
+    public_place_order: publicCount ?? undefined,
+    place_order_user: userCount ?? undefined,
+    place_order: adminCount ?? undefined,
+  });
+}
+
+async function resolveAdminCapOwner(
+  client: ReturnType<typeof useSuiClient>,
+  adminCapId: string
+): Promise<string | null> {
+  try {
+    const obj = await client.getObject({
+      id: adminCapId,
+      options: { showOwner: true },
+    });
+
+    const owner = obj.data?.owner;
+    if (!owner || typeof owner === 'string') return null;
+    if ('AddressOwner' in owner) return owner.AddressOwner;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Hook to place order (user self-service, no AdminCap required)
  */
@@ -148,6 +199,9 @@ export function usePlaceOrder() {
     }
     if (!CONTRACTS.TRADING_HUB || CONTRACTS.TRADING_HUB === '0x0') {
       throw new Error('TradingHub ID not configured');
+    }
+    if (!account.chains.includes(defaultChain)) {
+      throw new Error(`Wallet network mismatch. Please switch to ${defaultChain}.`);
     }
 
     const amountInSmallestUnit = parseUSDC(params.amount);
@@ -185,18 +239,64 @@ export function usePlaceOrder() {
     const priceBps = Math.max(1, Math.min(9999, Math.round(params.priceBps)));
 
     const [paymentCoin] = tx.splitCoins(primary, [tx.pure.u64(amountInSmallestUnit)]);
-    tx.moveCall({
-      target: `${CONTRACTS.PACKAGE_ID}::${MODULES.TRADING_HUB}::public_place_order`,
-      arguments: [
-        tx.object(CONTRACTS.TRADING_HUB),
-        tx.pure.vector('u8', marketIdToBytes(params.marketId)),
-        tx.pure.u8(params.outcome === 'YES' ? OUTCOME.YES : OUTCOME.NO),
-        paymentCoin,
-        tx.pure.u64(BigInt(priceBps)),
-      ],
-    });
+    const placeOrderEntrypoint = await resolvePlaceOrderEntrypoint(client);
+    if (!placeOrderEntrypoint) {
+      throw new Error(
+        'This package does not expose a user order entry. Please redeploy contracts and update frontend env IDs.'
+      );
+    }
 
-    const result = await signAndExecute({ transaction: tx });
+    const commonArgs = [
+      tx.object(CONTRACTS.TRADING_HUB),
+      tx.pure.vector('u8', marketIdToBytes(params.marketId)),
+      tx.pure.u8(params.outcome === 'YES' ? OUTCOME.YES : OUTCOME.NO),
+      paymentCoin,
+    ] as const;
+
+    if (placeOrderEntrypoint.mode === 'public_place_order' || placeOrderEntrypoint.mode === 'place_order_user') {
+      tx.moveCall({
+        target: `${CONTRACTS.PACKAGE_ID}::${MODULES.TRADING_HUB}::${placeOrderEntrypoint.mode}`,
+        arguments: placeOrderEntrypoint.includePriceBps
+          ? [...commonArgs, tx.pure.u64(BigInt(priceBps))]
+          : [...commonArgs],
+      });
+    } else {
+      if (!CONTRACTS.ADMIN_CAP || CONTRACTS.ADMIN_CAP === '0x0') {
+        throw new Error('Legacy package detected. Missing VITE_SUI_ADMIN_CAP for admin fallback.');
+      }
+
+      const adminOwner = await resolveAdminCapOwner(client, CONTRACTS.ADMIN_CAP);
+      if (!adminOwner || adminOwner.toLowerCase() !== account.address.toLowerCase()) {
+        throw new Error(
+          'Legacy package only supports admin place_order. Connect with the AdminCap owner wallet or redeploy latest package.'
+        );
+      }
+
+      tx.moveCall({
+        target: `${CONTRACTS.PACKAGE_ID}::${MODULES.TRADING_HUB}::place_order`,
+        arguments: placeOrderEntrypoint.includePriceBps
+          ? [
+              tx.object(CONTRACTS.ADMIN_CAP),
+              tx.object(CONTRACTS.TRADING_HUB),
+              tx.pure.address(account.address),
+              tx.pure.vector('u8', marketIdToBytes(params.marketId)),
+              tx.pure.u8(params.outcome === 'YES' ? OUTCOME.YES : OUTCOME.NO),
+              paymentCoin,
+              tx.pure.u64(BigInt(priceBps)),
+            ]
+          : [
+              tx.object(CONTRACTS.ADMIN_CAP),
+              tx.object(CONTRACTS.TRADING_HUB),
+              tx.pure.address(account.address),
+              tx.pure.vector('u8', marketIdToBytes(params.marketId)),
+              tx.pure.u8(params.outcome === 'YES' ? OUTCOME.YES : OUTCOME.NO),
+              paymentCoin,
+            ],
+      });
+    }
+    tx.setGasBudget(50_000_000);
+
+    const result = await signAndExecute({ transaction: tx, chain: defaultChain });
     await client.waitForTransaction({ digest: result.digest });
     return result;
   };
