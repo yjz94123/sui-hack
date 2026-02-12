@@ -2,13 +2,13 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "./src",
     "module": "CommonJS",
     "moduleResolution": "node",
     "paths": {
-      "@/*": ["./src/*"],
-      "@og-predict/shared": ["../packages/shared/src"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "../packages/shared/src/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }

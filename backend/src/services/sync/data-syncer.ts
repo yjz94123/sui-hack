@@ -3,6 +3,7 @@ import { logger } from '../../utils/logger';
 import { prisma } from '../../db/prisma';
 import { polymarketToOnchainMarketId } from '../../utils/id-mapping';
 import { config } from '../../config';
+import type { Prisma } from '@prisma/client';
 
 /**
  * 数据同步服务
@@ -87,7 +88,7 @@ export class DataSyncer {
     const now = new Date();
 
     // Wrap entire batch in a transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       for (const event of events) {
         const tagSlugs = (event.tags || []).map((t) => t.slug);
         const tags = (event.tags || []).map((t) => ({ slug: t.slug, label: t.label }));
