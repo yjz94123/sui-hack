@@ -1,0 +1,48 @@
+FROM node:20-bookworm-slim AS build
+
+WORKDIR /app
+
+# Install backend deps (includes dev deps for tsc)
+COPY backend/package.json backend/package-lock.json ./backend/
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/shared/tsconfig.json ./packages/shared/tsconfig.json
+RUN cd backend && npm ci
+
+# Copy sources
+COPY tsconfig.base.json ./tsconfig.base.json
+COPY packages/shared ./packages/shared
+COPY backend ./backend
+
+# Build shared and point its package.json to dist
+RUN npx tsc -p packages/shared/tsconfig.json
+RUN node -e "const fs=require('fs');const p='packages/shared/package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.main='./dist/index.js';j.types='./dist/index.d.ts';j.exports={'.':'./dist/index.js'};fs.writeFileSync(p,JSON.stringify(j,null,2));"
+
+# Replace the installed workspace dependency with the built one
+RUN rm -rf backend/node_modules/@og-predict/shared \
+  && cp -R packages/shared backend/node_modules/@og-predict/shared
+
+# Build backend and generate Prisma client
+RUN cd backend && npm run build && npm run db:generate
+
+# Drop dev deps to shrink runtime node_modules
+RUN cd backend && npm prune --omit=dev
+
+FROM node:20-bookworm-slim AS runtime
+
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=7860
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/backend/node_modules ./backend/node_modules
+COPY --from=build /app/backend/dist ./backend/dist
+COPY --from=build /app/backend/prisma ./backend/prisma
+COPY --from=build /app/backend/package.json ./backend/package.json
+
+EXPOSE 7860
+
+CMD ["node", "backend/dist/index.js"]
