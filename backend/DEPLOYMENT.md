@@ -126,105 +126,76 @@ cd sui-hack/backend
 
 Docker 部署是最简单和可靠的方式，推荐用于生产环境。
 
+**注意**：项目根目录已包含 `docker-compose.yml` 配置文件，无需手动创建。
+
 ### 1. 准备环境变量
 
 ```bash
-# 复制环境变量模板
-cp .env.example .env
+# 在项目根目录
+cd /Users/zhuyingjie/code/sui-hack
+
+# 如果根目录没有 .env，从 backend 复制
+cp backend/.env.example .env
+
+# 或者创建软链接使用 backend 的 .env
+ln -s backend/.env .env
 
 # 编辑环境变量（参考"环境变量配置"章节）
 nano .env
 ```
 
-### 2. 创建 docker-compose.yml
+**重要**：确保 `.env` 文件包含以下数据库配置：
 
-在 `backend` 目录创建 `docker-compose.yml`:
+```bash
+# PostgreSQL 配置（Docker 使用）
+POSTGRES_USER=ogpredict
+POSTGRES_PASSWORD=your_secure_password_here  # 修改为强密码
+POSTGRES_DB=og_prediction_market
 
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: ogpredict-db
-    restart: always
-    environment:
-      POSTGRES_DB: og_prediction_market
-      POSTGRES_USER: ogpredict
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ogpredict"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  backend:
-    build:
-      context: ..
-      dockerfile: backend/Dockerfile.standalone
-    container_name: ogpredict-backend
-    restart: always
-    ports:
-      - "127.0.0.1:3001:3001"
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://ogpredict:${DB_PASSWORD}@postgres:5432/og_prediction_market
-      PORT: 3001
-      # 从 .env 文件加载其他环境变量
-      POLYMARKET_GAMMA_BASE_URL: ${POLYMARKET_GAMMA_BASE_URL}
-      POLYMARKET_CLOB_BASE_URL: ${POLYMARKET_CLOB_BASE_URL}
-      OG_RPC_URL: ${OG_RPC_URL}
-      OG_STORAGE_INDEXER_RPC: ${OG_STORAGE_INDEXER_RPC}
-      STORAGE_PRIVATE_KEY: ${STORAGE_PRIVATE_KEY}
-      OG_KV_STREAM_ID: ${OG_KV_STREAM_ID}
-      OG_KV_NODE_RPC: ${OG_KV_NODE_RPC}
-      COMPUTE_PRIVATE_KEY: ${COMPUTE_PRIVATE_KEY}
-      OG_COMPUTE_API_KEY: ${OG_COMPUTE_API_KEY}
-      OG_COMPUTE_BASE_URL: ${OG_COMPUTE_BASE_URL}
-      OG_COMPUTE_MODEL: ${OG_COMPUTE_MODEL}
-      DEMO_USDC_ADDRESS: ${DEMO_USDC_ADDRESS}
-      TRADING_HUB_ADDRESS: ${TRADING_HUB_ADDRESS}
-      ORACLE_PRIVATE_KEY: ${ORACLE_PRIVATE_KEY}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-volumes:
-  postgres_data:
-    driver: local
+# Backend 端口（可选，默认 3001）
+BACKEND_PORT=3001
 ```
 
+### 2. 查看 docker-compose.yml 配置
+
+项目根目录的 `docker-compose.yml` 已配置好以下服务：
+
+- **PostgreSQL 16** - 数据库服务（端口 5432）
+- **Backend** - Node.js 应用（端口 3001）
+- **自动健康检查** - 确保服务正常启动
+- **数据持久化** - PostgreSQL 数据存储在 Docker volume
+
 ### 3. 构建并启动服务
+
+在**项目根目录**执行：
 
 ```bash
 # 构建镜像
 docker-compose build
 
-# 启动服务
+# 启动服务（首次启动会自动构建）
 docker-compose up -d
 
-# 查看日志
+# 查看启动日志
 docker-compose logs -f backend
 
-# 查看服务状态
+# 查看所有服务状态
 docker-compose ps
 ```
 
 ### 4. 运行数据库迁移
 
+等待服务启动后，执行数据库迁移：
+
 ```bash
-# 进入容器执行迁移
-docker-compose exec backend sh -c "cd backend && npx prisma migrate deploy"
+# 进入 backend 容器执行迁移
+docker-compose exec backend npx prisma migrate deploy
+
+# 或者进入容器的 bash
+docker-compose exec backend sh
+cd backend
+npx prisma migrate deploy
+exit
 ```
 
 ### 5. 验证部署
@@ -238,22 +209,36 @@ curl http://localhost:3001/health
 
 ### 6. Docker 常用命令
 
+**注意**：所有命令需在项目根目录执行。
+
 ```bash
-# 停止服务
+# 停止所有服务
 docker-compose down
 
-# 重启服务
+# 停止但保留数据
+docker-compose stop
+
+# 重启 backend 服务
 docker-compose restart backend
 
 # 查看实时日志
 docker-compose logs -f backend
 
-# 清理并重建
+# 查看所有服务日志
+docker-compose logs -f
+
+# 清理并重建（会删除数据库数据！）
 docker-compose down -v
 docker-compose up -d --build
 
-# 进入容器调试
+# 仅重建不删除数据
+docker-compose up -d --build
+
+# 进入 backend 容器调试
 docker-compose exec backend sh
+
+# 进入 PostgreSQL 容器
+docker-compose exec postgres psql -U ogpredict -d og_prediction_market
 ```
 
 ---
