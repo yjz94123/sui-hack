@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ogpredict-db
+    restart: always
+    environment:
+      POSTGRES_DB: og_prediction_market
+      POSTGRES_USER: ogpredict
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ogpredict"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ogpredict-network
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile.standalone
+    container_name: ogpredict-backend
+    restart: always
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://ogpredict:${DB_PASSWORD}@postgres:5432/og_prediction_market
+      PORT: 3001
+      # Polymarket API
+      POLYMARKET_GAMMA_BASE_URL: ${POLYMARKET_GAMMA_BASE_URL}
+      POLYMARKET_CLOB_BASE_URL: ${POLYMARKET_CLOB_BASE_URL}
+      # 0G Network
+      OG_RPC_URL: ${OG_RPC_URL}
+      # 0G Storage
+      OG_STORAGE_INDEXER_RPC: ${OG_STORAGE_INDEXER_RPC}
+      STORAGE_PRIVATE_KEY: ${STORAGE_PRIVATE_KEY}
+      OG_KV_STREAM_ID: ${OG_KV_STREAM_ID}
+      OG_KV_NODE_RPC: ${OG_KV_NODE_RPC}
+      # AI Compute
+      COMPUTE_PRIVATE_KEY: ${COMPUTE_PRIVATE_KEY}
+      OG_COMPUTE_API_KEY: ${OG_COMPUTE_API_KEY}
+      OG_COMPUTE_BASE_URL: ${OG_COMPUTE_BASE_URL}
+      OG_COMPUTE_MODEL: ${OG_COMPUTE_MODEL}
+      OG_COMPUTE_MAX_TOKENS: ${OG_COMPUTE_MAX_TOKENS:-50000}
+      OG_COMPUTE_TEMPERATURE: ${OG_COMPUTE_TEMPERATURE:-0.6}
+      OG_COMPUTE_THINKING_TYPE: ${OG_COMPUTE_THINKING_TYPE:-disabled}
+      AI_PROMPT_PATH: ${AI_PROMPT_PATH:-../prompt.md}
+      # Smart Contracts
+      DEMO_USDC_ADDRESS: ${DEMO_USDC_ADDRESS}
+      TRADING_HUB_ADDRESS: ${TRADING_HUB_ADDRESS}
+      # Oracle
+      ORACLE_PRIVATE_KEY: ${ORACLE_PRIVATE_KEY}
+      # Sync Intervals
+      SYNC_EVENTS_INTERVAL_MS: ${SYNC_EVENTS_INTERVAL_MS:-300000}
+      SYNC_ORDERBOOK_HOT_INTERVAL_MS: ${SYNC_ORDERBOOK_HOT_INTERVAL_MS:-30000}
+      SYNC_ORDERBOOK_COLD_INTERVAL_MS: ${SYNC_ORDERBOOK_COLD_INTERVAL_MS:-120000}
+      SYNC_PRICE_INTERVAL_MS: ${SYNC_PRICE_INTERVAL_MS:-30000}
+      ORACLE_CHECK_INTERVAL_MS: ${ORACLE_CHECK_INTERVAL_MS:-300000}
+      SNAPSHOT_INTERVAL_MS: ${SNAPSHOT_INTERVAL_MS:-1800000}
+      # Market Maker (optional)
+      MARKET_MAKER_ENABLED: ${MARKET_MAKER_ENABLED:-false}
+      MARKET_MAKER_PRIVATE_KEY: ${MARKET_MAKER_PRIVATE_KEY:-}
+      MARKET_MAKER_INTERVAL_MS: ${MARKET_MAKER_INTERVAL_MS:-60000}
+      MARKET_MAKER_SPREAD_BPS: ${MARKET_MAKER_SPREAD_BPS:-300}
+      MARKET_MAKER_ORDER_AMOUNT: ${MARKET_MAKER_ORDER_AMOUNT:-50}
+      MARKET_MAKER_MAX_MARKETS: ${MARKET_MAKER_MAX_MARKETS:-5}
+      MARKET_MAKER_MIN_BALANCE: ${MARKET_MAKER_MIN_BALANCE:-100}
+      MARKET_MAKER_MINT_AMOUNT: ${MARKET_MAKER_MINT_AMOUNT:-5000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ogpredict-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  ogpredict-network:
+    driver: bridge
