@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: og-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ogpredict}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+      POSTGRES_DB: ${POSTGRES_DB:-og_prediction_market}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - og-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ogpredict}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # 后端服务
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: og-backend
+    environment:
+      # 从 .env 文件读取环境变量
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3001}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ogpredict}:${POSTGRES_PASSWORD:-change_me_in_production}@postgres:5432/${POSTGRES_DB:-og_prediction_market}
+
+      # Polymarket API
+      POLYMARKET_GAMMA_BASE_URL: ${POLYMARKET_GAMMA_BASE_URL}
+      POLYMARKET_CLOB_BASE_URL: ${POLYMARKET_CLOB_BASE_URL}
+
+      # 0G Network
+      OG_RPC_URL: ${OG_RPC_URL}
+      OG_STORAGE_INDEXER_RPC: ${OG_STORAGE_INDEXER_RPC}
+      STORAGE_PRIVATE_KEY: ${STORAGE_PRIVATE_KEY}
+      OG_KV_STREAM_ID: ${OG_KV_STREAM_ID}
+      OG_KV_NODE_RPC: ${OG_KV_NODE_RPC}
+
+      # AI Compute
+      COMPUTE_PRIVATE_KEY: ${COMPUTE_PRIVATE_KEY}
+      OG_COMPUTE_API_KEY: ${OG_COMPUTE_API_KEY}
+      OG_COMPUTE_BASE_URL: ${OG_COMPUTE_BASE_URL}
+      OG_COMPUTE_MODEL: ${OG_COMPUTE_MODEL}
+      OG_COMPUTE_MAX_TOKENS: ${OG_COMPUTE_MAX_TOKENS}
+      OG_COMPUTE_TEMPERATURE: ${OG_COMPUTE_TEMPERATURE}
+      OG_COMPUTE_THINKING_TYPE: ${OG_COMPUTE_THINKING_TYPE}
+
+      # Smart Contracts
+      DEMO_USDC_ADDRESS: ${DEMO_USDC_ADDRESS}
+      TRADING_HUB_ADDRESS: ${TRADING_HUB_ADDRESS}
+
+      # Oracle
+      ORACLE_PRIVATE_KEY: ${ORACLE_PRIVATE_KEY}
+
+      # Sui (if needed)
+      SUI_ADDRESS: ${SUI_ADDRESS}
+      SUI_PRIVATE_KEY: ${SUI_PRIVATE_KEY}
+
+      # Sync Intervals
+      SYNC_EVENTS_INTERVAL_MS: ${SYNC_EVENTS_INTERVAL_MS:-300000}
+      SYNC_ORDERBOOK_HOT_INTERVAL_MS: ${SYNC_ORDERBOOK_HOT_INTERVAL_MS:-30000}
+      SYNC_ORDERBOOK_COLD_INTERVAL_MS: ${SYNC_ORDERBOOK_COLD_INTERVAL_MS:-120000}
+      SYNC_PRICE_INTERVAL_MS: ${SYNC_PRICE_INTERVAL_MS:-30000}
+      ORACLE_CHECK_INTERVAL_MS: ${ORACLE_CHECK_INTERVAL_MS:-300000}
+      SNAPSHOT_INTERVAL_MS: ${SNAPSHOT_INTERVAL_MS:-1800000}
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    networks:
+      - og-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+networks:
+  og-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
