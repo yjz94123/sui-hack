@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BarChart3, ChevronLeft, ChevronRight, Clock, Info, Layers3 } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Clock, Info, Layers3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEventDetail, useOrderBook, usePriceHistory } from '../hooks';
 import { OrderBook, PriceChart } from '../components/market';
@@ -38,9 +38,14 @@ export function MarketDetailPage() {
   const { data: eventData, isLoading, error } = useEventDetail(eventId);
   const event = eventData?.data;
   const [selectedMarketId, setSelectedMarketId] = useState<string | undefined>();
+  const [showAllMarkets, setShowAllMarkets] = useState(false);
+  const [dataTab, setDataTab] = useState<'orderbook' | 'graph'>('orderbook');
+
+  const VISIBLE_MARKET_COUNT = 5;
 
   useEffect(() => {
     setSelectedMarketId(undefined);
+    setShowAllMarkets(false);
   }, [eventId]);
 
   useEffect(() => {
@@ -185,77 +190,99 @@ export function MarketDetailPage() {
                 {t('marketDetail.marketUnavailable')}
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {markets.map((item) => {
-                  const selected = item.marketId === market?.marketId;
-                  const yes = parsePrice(item.outcomePrices?.[0]);
-                  const no = parsePrice(item.outcomePrices?.[1]);
+              <>
+                <div className="space-y-2.5">
+                  {(showAllMarkets ? markets : markets.slice(0, VISIBLE_MARKET_COUNT)).map((item) => {
+                    const selected = item.marketId === market?.marketId;
+                    const yes = parsePrice(item.outcomePrices?.[0]);
+                    const no = parsePrice(item.outcomePrices?.[1]);
 
-                  return (
-                    <button
-                      key={item.marketId}
-                      type="button"
-                      onClick={() => setSelectedMarketId(item.marketId)}
-                      className={
-                        selected
-                          ? 'w-full rounded-xl border border-accent/35 bg-accent-soft/70 p-3 text-left transition'
-                          : 'w-full rounded-xl border border-border bg-surface p-3 text-left transition hover:border-border-strong hover:bg-elevated/45'
-                      }
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-fg-primary">{item.question}</p>
-                          <p className="mt-1 text-xs text-fg-muted">
-                            {t('marketDetail.volume')}: {formatMoney(Number(item.volume || 0))}
-                          </p>
+                    return (
+                      <button
+                        key={item.marketId}
+                        type="button"
+                        onClick={() => setSelectedMarketId(item.marketId)}
+                        className={
+                          selected
+                            ? 'w-full rounded-xl border border-accent/35 bg-accent-soft/70 p-3 text-left transition'
+                            : 'w-full rounded-xl border border-border bg-surface p-3 text-left transition hover:border-border-strong hover:bg-elevated/45'
+                        }
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-fg-primary">{item.question}</p>
+                            <p className="mt-1 text-xs text-fg-muted">
+                              {t('marketDetail.volume')}: {formatMoney(Number(item.volume || 0))}
+                            </p>
+                          </div>
+                          <ChevronRight className={selected ? 'h-4 w-4 text-accent' : 'h-4 w-4 text-fg-muted'} />
                         </div>
-                        <ChevronRight className={selected ? 'h-4 w-4 text-accent' : 'h-4 w-4 text-fg-muted'} />
-                      </div>
 
-                      <div className="mt-3 flex items-center gap-2 text-xs">
-                        <span className="rounded-md border border-success/30 bg-success/10 px-2 py-1 font-medium text-success">
-                          Yes {(yes * 100).toFixed(1)}¢
-                        </span>
-                        <span className="rounded-md border border-danger/30 bg-danger/10 px-2 py-1 font-medium text-danger">
-                          No {(no * 100).toFixed(1)}¢
-                        </span>
-                      </div>
+                        <div className="mt-3 flex items-center gap-2 text-xs">
+                          <span className="rounded-md border border-success/30 bg-success/10 px-2 py-1 font-medium text-success">
+                            Yes {(yes * 100).toFixed(1)}¢
+                          </span>
+                          <span className="rounded-md border border-danger/30 bg-danger/10 px-2 py-1 font-medium text-danger">
+                            No {(no * 100).toFixed(1)}¢
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {markets.length > VISIBLE_MARKET_COUNT && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllMarkets(!showAllMarkets)}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-surface py-2.5 text-sm font-medium text-fg-secondary transition hover:border-border-strong hover:text-fg-primary"
+                  >
+                    <ChevronDown className={`h-4 w-4 transition ${showAllMarkets ? 'rotate-180' : ''}`} />
+                    {showAllMarkets
+                      ? t('common.showLess', 'Show Less')
+                      : t('common.viewMore', `View All ${markets.length} Markets`)}
+                  </button>
+                )}
+              </>
+            )}
+
+            {market && (
+              <div className="mt-5 border-t border-border pt-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-elevated/45 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setDataTab('orderbook')}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                        dataTab === 'orderbook'
+                          ? 'bg-accent text-white shadow-sm shadow-accent/25'
+                          : 'text-fg-muted hover:text-fg-secondary'
+                      }`}
+                    >
+                      <Layers3 className="h-3.5 w-3.5" />
+                      {t('marketDetail.orderBook')}
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    <button
+                      type="button"
+                      onClick={() => setDataTab('graph')}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                        dataTab === 'graph'
+                          ? 'bg-accent text-white shadow-sm shadow-accent/25'
+                          : 'text-fg-muted hover:text-fg-secondary'
+                      }`}
+                    >
+                      <BarChart3 className="h-3.5 w-3.5" />
+                      {t('marketDetail.priceHistory')}
+                    </button>
+                  </div>
+                  <span className="max-w-[50%] truncate text-xs text-fg-muted">{market.question}</span>
+                </div>
 
-          <div className="app-panel p-4 sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-fg-secondary" />
-                <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">{t('marketDetail.priceHistory')}</h2>
-              </div>
-              {market && <span className="text-xs text-fg-muted">{market.question}</span>}
-            </div>
-
-            {market ? (
-              <PriceChart data={priceData?.data} isLoading={priceLoading} />
-            ) : (
-              <div className="app-muted-panel px-4 py-10 text-center text-sm text-fg-muted">
-                {t('marketDetail.selectMarketToView')}
-              </div>
-            )}
-          </div>
-
-          <div className="app-panel p-4 sm:p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <Layers3 className="h-4 w-4 text-fg-secondary" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-fg-muted">{t('marketDetail.orderBook')}</h2>
-            </div>
-
-            {market ? (
-              <OrderBook data={orderBookData?.data} isLoading={orderBookLoading} />
-            ) : (
-              <div className="app-muted-panel px-4 py-10 text-center text-sm text-fg-muted">
-                {t('marketDetail.selectMarketToView')}
+                {dataTab === 'orderbook' ? (
+                  <OrderBook data={orderBookData?.data} isLoading={orderBookLoading} />
+                ) : (
+                  <PriceChart data={priceData?.data} isLoading={priceLoading} />
+                )}
               </div>
             )}
           </div>
