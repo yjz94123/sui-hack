@@ -2,6 +2,13 @@ import { useCurrentAccount, useSuiClient, useSignAndExecuteTransaction } from '@
 import { Transaction } from '@mysten/sui/transactions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CONTRACTS, MODULES, USDC_DECIMALS, USDC_COIN_TYPE } from '../config';
+import { defaultChain } from '../../config/sui';
+
+// Browser-compatible helper: convert BCS little-endian byte array to bigint
+function hexToU64LE(bytes: number[] | Uint8Array): bigint {
+  const hex = Array.from(bytes).reverse().map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hex ? BigInt(`0x${hex}`) : 0n;
+}
 
 /**
  * Hook to get USDC balance of current account
@@ -29,7 +36,7 @@ export function useUSDCBalance() {
       };
     },
     enabled: !!account,
-    refetchInterval: 5000, // 每 5 秒刷新一次
+    refetchInterval: 5000,
   });
 }
 
@@ -44,6 +51,15 @@ export function useMintUSDC() {
 
   const mint = async (amount: string) => {
     if (!account) throw new Error('Wallet not connected');
+    if (!CONTRACTS.PACKAGE_ID || CONTRACTS.PACKAGE_ID === '0x0') {
+      throw new Error('Package ID not configured');
+    }
+    if (!CONTRACTS.USDC_MINT_CONTROLLER || CONTRACTS.USDC_MINT_CONTROLLER === '0x0') {
+      throw new Error('MintController ID not configured');
+    }
+    if (!account.chains.includes(defaultChain)) {
+      throw new Error(`Wallet network mismatch. Please switch to ${defaultChain}.`);
+    }
 
     const amountInSmallestUnit = BigInt(Math.floor(parseFloat(amount) * 10 ** USDC_DECIMALS));
 
@@ -55,9 +71,11 @@ export function useMintUSDC() {
         tx.pure.u64(amountInSmallestUnit),
       ],
     });
+    tx.setGasBudget(50_000_000);
 
     const result = await signAndExecute({
       transaction: tx,
+      chain: defaultChain,
     });
 
     // 等待交易确认
@@ -89,7 +107,6 @@ export function useLastMintTime() {
     queryFn: async () => {
       if (!account) return null;
 
-      // 调用 view function
       const result = await client.devInspectTransactionBlock({
         sender: account.address,
         transactionBlock: (() => {
@@ -106,9 +123,8 @@ export function useLastMintTime() {
       });
 
       if (result.results && result.results[0]?.returnValues) {
-        const value = result.results[0].returnValues[0][0];
-        const lastMintTime = Number(BigInt(`0x${Buffer.from(value).toString('hex')}`));
-        return lastMintTime;
+        const value = result.results[0].returnValues[0][0] as number[];
+        return Number(hexToU64LE(value));
       }
 
       return 0;
@@ -142,8 +158,8 @@ export function useMaxMintAmount() {
       });
 
       if (result.results && result.results[0]?.returnValues) {
-        const value = result.results[0].returnValues[0][0];
-        const maxAmount = Number(BigInt(`0x${Buffer.from(value).toString('hex')}`));
+        const value = result.results[0].returnValues[0][0] as number[];
+        const maxAmount = Number(hexToU64LE(value));
         return {
           maxMintAmount: (maxAmount / 10 ** USDC_DECIMALS).toString(),
           maxMintAmountRaw: BigInt(maxAmount),
@@ -181,9 +197,8 @@ export function useMintCooldown() {
       });
 
       if (result.results && result.results[0]?.returnValues) {
-        const value = result.results[0].returnValues[0][0];
-        const cooldown = Number(BigInt(`0x${Buffer.from(value).toString('hex')}`));
-        return cooldown / 1000; // 转换为秒
+        const value = result.results[0].returnValues[0][0] as number[];
+        return Number(hexToU64LE(value)) / 1000; // 转换为秒
       }
 
       return 0;
@@ -191,6 +206,3 @@ export function useMintCooldown() {
     enabled: !!account,
   });
 }
-
-// Note: Sui 不需要 approve，因为使用 Coin 对象直接转移
-// 所以移除了 useUSDCAllowance 和 useApproveUSDC
