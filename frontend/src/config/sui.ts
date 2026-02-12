@@ -1,5 +1,6 @@
 import { getFullnodeUrl } from '@mysten/sui/client';
 import { createNetworkConfig } from '@mysten/dapp-kit';
+import { parseSuiNetwork, toSuiChain } from './network';
 
 const { networkConfig, useNetworkVariable, useNetworkVariables } = createNetworkConfig({
   testnet: {
@@ -15,5 +16,6 @@ const { networkConfig, useNetworkVariable, useNetworkVariables } = createNetwork
 
 export { networkConfig, useNetworkVariable, useNetworkVariables };
 
-// 默认使用 testnet
-export const defaultNetwork = 'testnet';
+const env = (import.meta as { env?: Record<string, string | undefined> }).env;
+export const defaultNetwork = parseSuiNetwork(env?.VITE_SUI_NETWORK);
+export const defaultChain = toSuiChain(defaultNetwork);
