@@ -51,8 +51,12 @@ function toNumberString(n: number, digits = 2): string {
 }
 
 function buildOrderBookSide(book: ClobOrderBook, depth: number) {
-  const bids = (book.bids || []).slice(0, depth);
-  const asks = (book.asks || []).slice(0, depth);
+  // CLOB API 返回 bids 从低到高、asks 从高到低
+  // 标准订单簿: bids 按价格降序（最佳买价在前），asks 按价格升序（最佳卖价在前）
+  const sortedBids = [...(book.bids || [])].sort((a, b) => Number(b.price) - Number(a.price));
+  const sortedAsks = [...(book.asks || [])].sort((a, b) => Number(a.price) - Number(b.price));
+  const bids = sortedBids.slice(0, depth);
+  const asks = sortedAsks.slice(0, depth);
 
   const bestBid = bids[0]?.price ?? '0';
   const bestAsk = asks[0]?.price ?? '0';
