@@ -28,6 +28,7 @@ FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV AI_PROMPT_PATH=/app/prompt.md
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
@@ -37,6 +38,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/backend/prisma ./backend/prisma
 COPY --from=build /app/backend/package.json ./backend/package.json
+COPY prompt.md ./prompt.md
 
 EXPOSE 3001
 
